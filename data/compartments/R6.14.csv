@@ -1,0 +1,9 @@
+# id: R6.14
+# description: L.O.DRAIN TK.
+# contents: Lubricating Oil (LO, RHO = 0.9)
+# capacity: 3.39
+# source: data/source/soundingTables.txt (trim 0 m)
+# sounding [m], volume [m3], lcg [m from AP], tcg [m, + port], vcg [m above BL], inertia [m4, free-surface second moment of area]; capacity [m3] = volume at 100 % fill
+sounding,volume,lcg,tcg,vcg,inertia
+0.000,0.00,26.800,-3.410,2.090,1.1
+0.790,3.39,26.800,-3.410,2.490,1.1

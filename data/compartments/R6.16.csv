@@ -1,0 +1,11 @@
+# id: R6.16
+# description: OILY BILGE TK.
+# contents: Heavy Fuel Oil (HFO1, RHO = 0.99)
+# capacity: 15.83
+# source: data/source/soundingTables.txt (trim 0 m)
+# sounding [m], volume [m3], lcg [m from AP], tcg [m, + port], vcg [m above BL], inertia [m4, free-surface second moment of area]; capacity [m3] = volume at 100 % fill
+sounding,volume,lcg,tcg,vcg,inertia
+0.000,0.00,28.800,3.410,1.500,3.0
+0.500,5.65,28.800,3.410,1.750,3.0
+1.000,11.31,28.800,3.410,1.990,3.0
+1.400,15.83,28.800,3.410,2.190,3.0

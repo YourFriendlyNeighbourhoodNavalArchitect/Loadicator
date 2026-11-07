@@ -1,0 +1,14 @@
+# id: R6.11
+# description: BILGE HOLDING TK
+# contents: Water Ballast (WB1, RHO = 1.025)
+# capacity: 81.79
+# source: data/source/soundingTables.txt (trim 0 m)
+# sounding [m], volume [m3], lcg [m from AP], tcg [m, + port], vcg [m above BL], inertia [m4, free-surface second moment of area]; capacity [m3] = volume at 100 % fill
+sounding,volume,lcg,tcg,vcg,inertia
+0.000,0.00,17.760,0.000,0.000,0.3
+0.480,7.41,16.670,0.000,0.300,25.3
+0.980,20.89,16.360,0.000,0.600,57.0
+1.480,35.89,16.150,0.030,0.870,79.9
+1.980,52.47,16.050,0.050,1.150,98.5
+2.480,68.74,16.060,0.060,1.410,106.6
+2.880,81.79,16.070,0.060,1.620,111.7

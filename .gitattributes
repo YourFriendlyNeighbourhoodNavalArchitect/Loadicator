@@ -1,0 +1,6 @@
+# Normalise text to LF in the repository.
+* text=auto eol=lf
+
+# Original source documents are kept byte-exact (CRLF, NEL characters and all).
+data/source/** -text
+*.pdf binary

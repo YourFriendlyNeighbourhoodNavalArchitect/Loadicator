@@ -1,0 +1,6 @@
+# name: COND01 LIGHTSHIP
+# source: data/source/trimAndStabilityBook.pdf
+# kind: tank (capacity table; give mass or fillPercent, plus density and phase)
+#       weight (fixed item; give mass, lcg [m from AP], tcg [m, + port], vcg [m], fsm [t*m])
+kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm
+weight,Lightweight,24641.9,,,,132.01,0.00,13.67,0.00

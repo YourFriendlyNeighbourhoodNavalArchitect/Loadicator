@@ -1,0 +1,7 @@
+# source: data/source/hydrostaticTables.pdf (principal data, references)
+parameter,value,unit
+lengthBetweenPerpendiculars,278.200,m
+breadthMoulded,45.000,m
+depthMoulded,24.650,m
+designDraught,16.500,m
+referencePointX,139.100,m

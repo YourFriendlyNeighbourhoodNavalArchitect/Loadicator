@@ -1,0 +1,11 @@
+# id: R6.12
+# description: STERN TUBE L.O.DRAN TK
+# contents: Lubricating Oil (LO, RHO = 0.9)
+# capacity: 6.54
+# source: data/source/soundingTables.txt (trim 0 m)
+# sounding [m], volume [m3], lcg [m from AP], tcg [m, + port], vcg [m above BL], inertia [m4, free-surface second moment of area]; capacity [m3] = volume at 100 % fill
+sounding,volume,lcg,tcg,vcg,inertia
+0.000,0.00,18.000,-0.750,1.040,0.7
+0.490,1.76,18.000,-0.750,1.290,0.7
+0.990,3.53,18.000,-0.750,1.540,0.7
+1.840,6.54,18.000,-0.750,1.970,0.7

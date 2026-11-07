@@ -1,0 +1,27 @@
+# name: COND18 FULLY LOADED ORE (DESIGN DRAUGHT)-50% BUNKERS
+# source: data/source/trimAndStabilityBook.pdf
+# kind: tank (capacity table; give mass or fillPercent, plus density and phase)
+#       weight (fixed item; give mass, lcg [m from AP], tcg [m, + port], vcg [m], fsm [t*m])
+kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm
+tank,R1.1,24666.9,,2.984,solid,,,,
+tank,R1.3,32044.4,,2.984,solid,,,,
+tank,R1.5,32043.1,,2.984,solid,,,,
+tank,R1.7,32072.3,,2.984,solid,,,,
+tank,R1.9,26596.5,,2.984,solid,,,,
+tank,R4.1,118.0,,0.850,liquid,,,,
+tank,R4.2,26.5,,0.850,liquid,,,,
+tank,R4.3,26.5,,0.850,liquid,,,,
+tank,R3.3P,352.1,,0.990,liquid,,,,
+tank,R3.3S,352.1,,0.990,liquid,,,,
+tank,R3.4P,493.9,,0.990,liquid,,,,
+tank,R3.4S,493.9,,0.990,liquid,,,,
+tank,R3.5,532.2,,0.990,liquid,,,,
+tank,R3.6,38.2,,0.990,liquid,,,,
+tank,R3.7,38.2,,0.990,liquid,,,,
+tank,R3.8,76.9,,0.990,liquid,,,,
+tank,R3.9,84.5,,0.990,liquid,,,,
+weight,CREW&ST,200.0,,,,39.10,0.00,30.00,0.00
+weight,R5.1P,154.1,,,,9.68,10.76,20.40,394.41
+weight,R5.1S,99.8,,,,8.84,-10.61,20.41,239.00
+weight,OIL&WAT,150.0,,,,23.10,0.00,22.00,0.00
+weight,Lightweight,24641.9,,,,132.01,0.00,13.67,0.00

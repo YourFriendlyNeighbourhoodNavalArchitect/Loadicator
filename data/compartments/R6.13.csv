@@ -1,0 +1,12 @@
+# id: R6.13
+# description: M/E L.O.SUMP TK.
+# contents: Lubricating Oil (LO, RHO = 0.9)
+# capacity: 38.22
+# source: data/source/soundingTables.txt (trim 0 m)
+# sounding [m], volume [m3], lcg [m from AP], tcg [m, + port], vcg [m above BL], inertia [m4, free-surface second moment of area]; capacity [m3] = volume at 100 % fill
+sounding,volume,lcg,tcg,vcg,inertia
+0.000,0.00,26.000,0.000,0.900,23.4
+0.490,15.29,26.000,0.000,1.150,23.4
+0.990,30.58,26.000,0.000,1.400,23.4
+1.490,37.06,25.900,0.000,1.510,1.8
+1.980,38.22,25.760,0.000,1.540,1.8

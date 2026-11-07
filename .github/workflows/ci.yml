@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC 13
+            os: ubuntu-24.04
+            cxx: g++-13
+            werror: ON
+          - name: Clang 18
+            os: ubuntu-24.04
+            cxx: clang++-18
+            werror: ON
+          - name: GCC 13 (ASan + UBSan)
+            os: ubuntu-24.04
+            cxx: g++-13
+            werror: ON
+            flags: -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
+            buildType: Debug
+          - name: MSVC 2022
+            os: windows-2022
+            werror: OFF
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.buildType || 'Release' }}
+          -DLOADICATOR_WARNINGS_AS_ERRORS=${{ matrix.werror }}
+          ${{ matrix.cxx && format('-DCMAKE_CXX_COMPILER={0}', matrix.cxx) || '' }}
+          ${{ matrix.flags && format('-DCMAKE_CXX_FLAGS="{0}"', matrix.flags) || '' }}
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.buildType || 'Release' }} --parallel
+
+      - name: Test
+        run: ctest --test-dir build --build-config ${{ matrix.buildType || 'Release' }} --output-on-failure
+
+  lint:
+    name: clang-format and clang-tidy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clang-format
+        run: git ls-files '*.cpp' '*.h' | xargs clang-format-18 --dry-run -Werror
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=clang++-18
+
+      - name: clang-tidy
+        run: git ls-files '*.cpp' | xargs -P4 -n1 clang-tidy-18 -p build --quiet
