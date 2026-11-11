@@ -1,0 +1,26 @@
+kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm
+name,COND25 HOMOGENEOUS ORE (SCANTLING DRAUGHT)-ARRIVAL BUNK,,,,,,,,
+tank,R1.1,15188.2,,3.001,solid,,,,
+tank,R1.2,19099.3,,3.001,solid,,,,
+tank,R1.3,19730.8,,3.001,solid,,,,
+tank,R1.4,19731.4,,3.001,solid,,,,
+tank,R1.5,19730.0,,3.001,solid,,,,
+tank,R1.6,18588.8,,3.001,solid,,,,
+tank,R1.7,19748.0,,3.001,solid,,,,
+tank,R1.8,19407.5,,3.001,solid,,,,
+tank,R1.9,16376.3,,3.001,solid,,,,
+tank,R4.2,26.5,,0.850,liquid,,,,
+tank,R4.3,7.7,,0.850,liquid,,,,
+tank,R3.5,255.5,,0.990,liquid,,,,
+tank,R3.6,38.2,,0.990,liquid,,,,
+tank,R3.7,38.2,,0.990,liquid,,,,
+tank,R3.8,76.9,,0.990,liquid,,,,
+tank,R3.9,84.5,,0.990,liquid,,,,
+tank,R2.09P,1650.4,,1.025,liquid,,,,
+tank,R2.09S,1650.4,,1.025,liquid,,,,
+tank,R2.33,313.9,,1.025,liquid,,,,
+weight,CREW&ST,190.0,,,,39.10,0.00,30.00,0.00
+weight,R5.1P,30.8,,,,9.68,10.50,19.02,305.51
+weight,R5.1S,20.0,,,,8.84,-10.34,19.02,182.21
+weight,OIL&WAT,100.0,,,,23.10,0.00,22.00,0.00
+weight,Lightweight,24641.9,,,,132.01,0.00,13.67,0.00

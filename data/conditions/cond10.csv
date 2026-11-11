@@ -1,0 +1,23 @@
+kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm
+name,COND10 HOMOGENEOUS (0.792 t/m3 DESIGN DRAUGHT)-ARRIVAL,,,,,,,,
+tank,R1.1,13361.2,,0.792,solid,,,,
+tank,R1.2,16801.8,,0.792,solid,,,,
+tank,R1.3,17357.3,,0.792,solid,,,,
+tank,R1.4,17357.8,,0.792,solid,,,,
+tank,R1.5,17356.6,,0.792,solid,,,,
+tank,R1.6,16352.7,,0.792,solid,,,,
+tank,R1.7,17372.4,,0.792,solid,,,,
+tank,R1.8,17072.9,,0.792,solid,,,,
+tank,R1.9,14406.4,,0.792,solid,,,,
+tank,R4.2,26.5,,0.850,liquid,,,,
+tank,R4.3,7.7,,0.850,liquid,,,,
+tank,R3.5,255.5,,0.990,liquid,,,,
+tank,R3.6,38.2,,0.990,liquid,,,,
+tank,R3.7,38.2,,0.990,liquid,,,,
+tank,R3.8,76.9,,0.990,liquid,,,,
+tank,R3.9,84.5,,0.990,liquid,,,,
+weight,CREW&ST,190.0,,,,39.10,0.00,30.00,0.00
+weight,R5.1P,30.8,,,,9.68,10.50,19.02,305.51
+weight,R5.1S,20.0,,,,8.84,-10.34,19.02,182.21
+weight,OIL&WAT,100.0,,,,23.10,0.00,22.00,0.00
+weight,Lightweight,24641.9,,,,132.01,0.00,13.67,0.00
