@@ -16,7 +16,7 @@ The extractor requires `cmake`, a C++20 compiler and `pdftotext`. The following 
 tools/extractData.sh
 ```
 
-The comparison lists, for each key metric, the mean deviation from the book over the 31 loading conditions, the largest deviation and the condition in which it occurs. The output files are deterministic, so `git diff` shows exactly what a new extraction has changed.
+The comparison lists, for each key metric, the mean absolute and the mean deviation from the book over the 31 loading conditions, the largest deviation and the condition in which it occurs, and the conditions whose deviation is an outlier. The output files are deterministic, so `git diff` shows exactly what a new extraction has changed.
 
 ## Output Files
 
