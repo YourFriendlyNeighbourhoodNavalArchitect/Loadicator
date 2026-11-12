@@ -1,6 +1,6 @@
 #include "compartmentTables.h"
 
-#include "util/text.h"
+#include "loadicator/util/text.h"
 
 #include <algorithm>
 #include <cmath>

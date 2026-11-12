@@ -1,9 +1,9 @@
 #pragma once
 
-#include "domain/compartmentTable.h"
-#include "domain/hydrostaticTable.h"
-#include "domain/loadingCondition.h"
-#include "domain/shipParticulars.h"
+#include "loadicator/domain/compartmentTable.h"
+#include "loadicator/domain/hydrostaticTable.h"
+#include "loadicator/domain/loadingCondition.h"
+#include "loadicator/domain/shipParticulars.h"
 
 #include <map>
 #include <string>

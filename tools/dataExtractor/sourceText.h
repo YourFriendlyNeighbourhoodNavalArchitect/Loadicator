@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/error.h"
+#include "loadicator/util/error.h"
 
 #include <cstddef>
 #include <filesystem>

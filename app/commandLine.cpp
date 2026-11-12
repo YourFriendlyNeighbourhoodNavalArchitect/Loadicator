@@ -1,6 +1,6 @@
 #include "commandLine.h"
 
-#include "io/schema.h"
+#include "loadicator/io/schema.h"
 
 #include <charconv>
 #include <format>

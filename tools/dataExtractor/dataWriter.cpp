@@ -1,7 +1,8 @@
 #include "dataWriter.h"
 
-#include "io/schema.h"
-#include "util/error.h"
+#include "loadicator/book/bookResults.h"
+#include "loadicator/io/schema.h"
+#include "loadicator/util/error.h"
 
 #include <array>
 #include <format>
@@ -124,7 +125,7 @@ private:
 }
 
 [[nodiscard]] std::string bookResultsFile(const std::vector<BookCondition>& conditions) {
-    namespace columns = schema::bookResults;
+    namespace columns = book::column;
     struct Column {
         std::string_view name;
         int decimals;
@@ -141,10 +142,10 @@ private:
         header.push_back(column.name);
     }
     csv.header(header);
-    for (const BookCondition& book : conditions) {
-        std::vector<std::string> fields{schema::bookConditionKey(book.number)};
+    for (const BookCondition& bookCondition : conditions) {
+        std::vector<std::string> fields{schema::bookConditionKey(bookCondition.number)};
         for (const Column& column : resultColumns) {
-            fields.push_back(number(book.results.at(column.name), column.decimals));
+            fields.push_back(number(bookCondition.results.at(column.name), column.decimals));
         }
         csv.row(fields);
     }
@@ -190,12 +191,12 @@ void writeShipData(const ShipData& data, const fs::path& dataDirectory) {
     for (const CompartmentData& table : data.compartments) {
         writeFile(compartments / (table.id + std::string(schema::files::extension)), compartmentFile(table));
     }
-    for (const BookCondition& book : data.conditions) {
-        writeFile(conditions /
-                      (schema::bookConditionKey(book.number) + std::string(schema::files::extension)),
-                  conditionFile(book.condition));
+    for (const BookCondition& bookCondition : data.conditions) {
+        const std::string fileName =
+            schema::bookConditionKey(bookCondition.number) + std::string(schema::files::extension);
+        writeFile(conditions / fileName, conditionFile(bookCondition.condition));
     }
-    writeFile(dataDirectory / schema::files::bookResults, bookResultsFile(data.conditions));
+    writeFile(dataDirectory / book::resultsFile, bookResultsFile(data.conditions));
 }
 
 }

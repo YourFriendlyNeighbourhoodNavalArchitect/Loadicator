@@ -1,9 +1,9 @@
 #include "verification.h"
 
-#include "calc/loadResolution.h"
-#include "calc/massSummary.h"
-#include "io/schema.h"
-#include "util/error.h"
+#include "loadicator/calc/loadResolution.h"
+#include "loadicator/calc/massSummary.h"
+#include "loadicator/book/bookResults.h"
+#include "loadicator/util/error.h"
 
 #include <cmath>
 
@@ -24,14 +24,15 @@ void verify(const ShipData& data) {
         compartments.add(CompartmentTable(CompartmentId{table.id}, table.rows));
     }
 
-    for (const BookCondition& book : data.conditions) {
-        const std::vector<WeightItem> weights = resolveLoadingCondition(book.condition, compartments);
+    for (const BookCondition& bookCondition : data.conditions) {
+        const std::vector<WeightItem> weights =
+            resolveLoadingCondition(bookCondition.condition, compartments);
         const double total = summarizeWeights(weights).displacement.value();
-        const double bookTotal = book.results.at(io::schema::bookResults::displacement);
+        const double bookTotal = bookCondition.results.at(book::column::displacement);
         if (std::abs(total - bookTotal) > massRounding * static_cast<double>(weights.size() + 1)) {
-            throw LoadicatorError(book.condition.name + ": the entries sum to " + std::to_string(total) +
-                                  " t, but the book gives a total weight of " + std::to_string(bookTotal) +
-                                  " t");
+            throw LoadicatorError(bookCondition.condition.name + ": the entries sum to " +
+                                  std::to_string(total) + " t, but the book gives a total weight of " +
+                                  std::to_string(bookTotal) + " t");
         }
     }
 }

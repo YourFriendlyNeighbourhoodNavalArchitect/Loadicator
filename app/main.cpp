@@ -1,8 +1,8 @@
-#include "calc/analysis.h"
+#include "loadicator/calc/analysis.h"
 #include "commandLine.h"
-#include "io/dataLoader.h"
-#include "io/reportWriter.h"
-#include "util/error.h"
+#include "loadicator/io/dataLoader.h"
+#include "loadicator/report/reportWriter.h"
+#include "loadicator/util/error.h"
 
 #include <cstdlib>
 #include <exception>
@@ -31,11 +31,11 @@ void run(const app::Options& options) {
     const Analysis analysis = analyzeLoadingCondition(ship, condition);
 
     if (!options.outputFile) {
-        io::writeReport(std::cout, analysis);
+        report::writeReport(std::cout, analysis);
         return;
     }
     std::ofstream file(*options.outputFile);
-    io::writeReport(file, analysis);
+    report::writeReport(file, analysis);
     file.close();
     if (!file) {
         throw LoadicatorError("cannot write '" + options.outputFile->string() + "'");

@@ -12,14 +12,18 @@ The ship data are taken from the trim and stability book, the hydrostatic tables
 
 ## Repository Structure
 
-- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor.
+- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor. The library is built as one target per layer.
+- `cmake/checkLayers.cmake`: Test that each layer of the library includes only headers of the layers it depends on.
 - `app/main.cpp`: Command-line program, which reads the ship data and a loading condition, and writes the report.
 - `app/commandLine.cpp`: Command-line options.
-- `src/util/`: Dimension-checked physical quantities (mass, length, volume, density and moment) and angles, the error type and text parsing.
-- `src/numeric/`: Bracketing interpolation, natural cubic splines and root finding.
-- `src/io/`: CSV reading, the names of the data files and their columns, loaders for the ship data and the loading conditions, and the plain-text report.
-- `src/domain/`: Ship particulars, hydrostatic tables, compartment capacity tables and loading conditions.
-- `src/calc/`: Resolution of a loading condition into weights, weight summary, equilibrium solver and initial stability.
+- `src/loadicator/`: The library, in layers. Each layer depends only on the layers listed before it.
+  - `util/`: Dimension-checked physical quantities (mass, length, volume, density and moment) and angles, the error type and text parsing.
+  - `numeric/`: Bracketing interpolation, natural cubic splines and root finding.
+  - `domain/`: Ship particulars, hydrostatic tables, compartment capacity tables and loading conditions.
+  - `calc/`: Resolution of a loading condition into weights, weight summary, equilibrium solver and initial stability.
+  - `io/`: CSV reading, the names of the data files and their columns, and loaders for the ship data and the loading conditions. Depends on `domain/`.
+  - `report/`: The plain-text report of an analysis. Depends on `calc/`.
+  - `book/`: The columns of the results printed in the trim and stability book, used only by the data extractor and the comparison with the book.
 - `tools/dataExtractor/`: One-off conversion of the ship's documents into the CSV data, with repair and verification of the tables.
 - `tools/extractData.sh`: Extracts the text of the documents, runs the data extractor and compares the result with the book.
 - `tests/bookComparison.cpp`: Comparison with the 31 loading conditions of the trim and stability book, as the mean deviation of each key metric.

@@ -1,7 +1,8 @@
-#include "calc/analysis.h"
-#include "io/csv.h"
-#include "io/dataLoader.h"
-#include "io/schema.h"
+#include "loadicator/book/bookResults.h"
+#include "loadicator/calc/analysis.h"
+#include "loadicator/io/csv.h"
+#include "loadicator/io/dataLoader.h"
+#include "loadicator/io/schema.h"
 
 #include <algorithm>
 #include <array>
@@ -27,29 +28,29 @@ struct Metric {
 };
 
 constexpr std::array metrics{
-    Metric{"Displacement", "t", schema::bookResults::displacement,
+    Metric{"Displacement", "t", book::column::displacement,
            [](const Analysis& a) { return a.mass.displacement.value(); }, 0.5},
-    Metric{"LCG", "m", schema::bookResults::lcg,
+    Metric{"LCG", "m", book::column::lcg,
            [](const Analysis& a) { return a.mass.centreOfGravity.x.value(); }, 0.02},
-    Metric{"TCG", "m", schema::bookResults::tcg,
+    Metric{"TCG", "m", book::column::tcg,
            [](const Analysis& a) { return a.mass.centreOfGravity.y.value(); }, 0.05},
-    Metric{"KG", "m", schema::bookResults::kg,
+    Metric{"KG", "m", book::column::kg,
            [](const Analysis& a) { return a.mass.centreOfGravity.z.value(); }, 0.01},
-    Metric{"Draught midships", "m", schema::bookResults::draught,
+    Metric{"Draught midships", "m", book::column::draught,
            [](const Analysis& a) { return a.floatingPosition.draughtMidships.value(); }, 0.02},
-    Metric{"Draught aft", "m", schema::bookResults::draughtAft,
+    Metric{"Draught aft", "m", book::column::draughtAft,
            [](const Analysis& a) { return a.floatingPosition.draughtAft.value(); }, 0.02},
-    Metric{"Draught forward", "m", schema::bookResults::draughtForward,
+    Metric{"Draught forward", "m", book::column::draughtForward,
            [](const Analysis& a) { return a.floatingPosition.draughtForward.value(); }, 0.04},
-    Metric{"Trim", "m", schema::bookResults::trim,
+    Metric{"Trim", "m", book::column::trim,
            [](const Analysis& a) { return a.floatingPosition.trim.value(); }, 0.05},
-    Metric{"KMT", "m", schema::bookResults::kmt,
+    Metric{"KMT", "m", book::column::kmt,
            [](const Analysis& a) { return a.floatingPosition.kmt.value(); }, 0.05},
-    Metric{"GM solid", "m", schema::bookResults::gmSolid,
+    Metric{"GM solid", "m", book::column::gmSolid,
            [](const Analysis& a) { return a.stability.gmSolid.value(); }, 0.05},
-    Metric{"GM fluid", "m", schema::bookResults::gm,
+    Metric{"GM fluid", "m", book::column::gm,
            [](const Analysis& a) { return a.stability.gmFluid.value(); }, 0.05},
-    Metric{"Heel", "deg", schema::bookResults::heel,
+    Metric{"Heel", "deg", book::column::heel,
            [](const Analysis& a) { return a.stability.heel.value().degrees(); }, 0.4},
 };
 
@@ -71,14 +72,14 @@ struct Deviation {
 
 int run(const std::filesystem::path& dataDirectory) {
     const Ship ship = io::loadShip(dataDirectory);
-    const io::CsvDocument book = io::CsvDocument::readFile(dataDirectory / schema::files::bookResults);
-    const io::CsvColumn condition = book.column(schema::bookResults::condition);
+    const io::CsvDocument bookResults = io::CsvDocument::readFile(dataDirectory / book::resultsFile);
+    const io::CsvColumn condition = bookResults.column(book::column::condition);
     std::array<io::CsvColumn, metrics.size()> columns;
     std::transform(metrics.begin(), metrics.end(), columns.begin(),
-                   [&](const Metric& metric) { return book.column(metric.bookColumn); });
+                   [&](const Metric& metric) { return bookResults.column(metric.bookColumn); });
 
     std::array<Deviation, metrics.size()> deviations;
-    for (const io::CsvRow expected : book.rows()) {
+    for (const io::CsvRow expected : bookResults.rows()) {
         const std::string name{expected.text(condition)};
         const Analysis analysis = analyzeLoadingCondition(
             ship, io::loadLoadingCondition(dataDirectory / schema::files::conditions /
@@ -88,10 +89,10 @@ int run(const std::filesystem::path& dataDirectory) {
         }
     }
 
-    const auto conditionCount = static_cast<double>(book.rowCount());
+    const auto conditionCount = static_cast<double>(bookResults.rowCount());
     bool withinLimits = true;
     std::cout << std::format("Deviation from the trim and stability book over {} loading conditions\n\n",
-                             book.rowCount())
+                             bookResults.rowCount())
               << std::format("{:<18}{:<6}{:>10}{:>10}{:>10}  {:<8}{:>8}\n", "Metric", "Unit", "Mean abs",
                              "Mean", "Worst", "in", "Limit");
     for (std::size_t index = 0; index < metrics.size(); ++index) {

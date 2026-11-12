@@ -1,7 +1,7 @@
 #include "sourceText.h"
 
-#include "io/textFile.h"
-#include "util/text.h"
+#include "loadicator/io/textFile.h"
+#include "loadicator/util/text.h"
 
 namespace loadicator::extractor {
 

@@ -1,7 +1,7 @@
 #include "loadingConditions.h"
 
-#include "io/schema.h"
-#include "util/text.h"
+#include "loadicator/book/bookResults.h"
+#include "loadicator/util/text.h"
 
 #include <algorithm>
 #include <array>
@@ -13,7 +13,7 @@ namespace loadicator::extractor {
 
 namespace {
 
-namespace results = io::schema::bookResults;
+namespace results = book::column;
 
 constexpr std::string_view heading = "LOADING CONDITION - COND";
 
