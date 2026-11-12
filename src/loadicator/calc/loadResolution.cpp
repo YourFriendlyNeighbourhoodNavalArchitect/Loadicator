@@ -15,14 +15,14 @@ namespace {
 }
 
 [[nodiscard]] WeightItem resolveTank(const TankLoad& load, const CompartmentLibrary& compartments) {
-    const CompartmentTable& table = compartments.at(load.compartment);
+    const CompartmentTable& table = compartments.at(load.compartment());
     const Volume volume = std::visit(
-        [&](auto amount) { return volumeOf(amount, load.density, table.capacity()); }, load.amount);
+        [&](auto amount) { return volumeOf(amount, load.density(), table.capacity()); }, load.amount());
     const CompartmentState state = table.stateAt(volume);
     const Moment freeSurfaceMoment =
-        load.phase == CargoPhase::liquid ? load.density * state.freeSurfaceInertia : Moment{0.0};
-    return WeightItem{.name = load.compartment.value(),
-                      .mass = load.density * state.volume,
+        load.phase() == CargoPhase::liquid ? load.density() * state.freeSurfaceInertia : Moment{0.0};
+    return WeightItem{.name = load.compartment().value(),
+                      .mass = load.density() * state.volume,
                       .centre = state.centroid,
                       .freeSurfaceMoment = freeSurfaceMoment};
 }

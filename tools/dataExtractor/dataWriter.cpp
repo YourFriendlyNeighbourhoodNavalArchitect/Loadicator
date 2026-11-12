@@ -111,10 +111,10 @@ private:
                 columns::phase, columns::lcg, columns::tcg, columns::vcg, columns::fsm});
     csv.row({std::string(columns::name), condition.name(), "", "", "", "", "", "", "", ""});
     for (const TankLoad& tank : condition.tankLoads()) {
-        csv.row({std::string(columns::tank), tank.compartment.value(),
-                 number(std::get<Mass>(tank.amount).value(), 1), "", number(tank.density.value(), 3),
-                 std::string(tank.phase == CargoPhase::solid ? columns::solid : columns::liquid), "", "", "",
-                 ""});
+        csv.row({std::string(columns::tank), tank.compartment().value(),
+                 number(std::get<Mass>(tank.amount()).value(), 1), "", number(tank.density().value(), 3),
+                 std::string(tank.phase() == CargoPhase::solid ? columns::solid : columns::liquid), "", "",
+                 "", ""});
     }
     for (const WeightItem& weight : condition.fixedWeights()) {
         csv.row({std::string(columns::weight), weight.name, number(weight.mass.value(), 1), "", "", "",

@@ -14,13 +14,22 @@ enum class CargoPhase { liquid, solid };
 
 using TankAmount = std::variant<Mass, Ratio>;
 
-struct TankLoad {
-    TankLoad(CompartmentId tank, TankAmount contents, Density contentsDensity, CargoPhase contentsPhase);
+// The contents of a compartment: a mass that is not negative or a fill within 0 .. 100 %, of a positive
+// density.
+class TankLoad {
+public:
+    TankLoad(CompartmentId compartment, TankAmount amount, Density density, CargoPhase phase);
 
-    CompartmentId compartment;
-    TankAmount amount;
-    Density density;
-    CargoPhase phase;
+    [[nodiscard]] const CompartmentId& compartment() const { return compartmentId; }
+    [[nodiscard]] const TankAmount& amount() const { return contents; }
+    [[nodiscard]] Density density() const { return contentsDensity; }
+    [[nodiscard]] CargoPhase phase() const { return contentsPhase; }
+
+private:
+    CompartmentId compartmentId;
+    TankAmount contents;
+    Density contentsDensity;
+    CargoPhase contentsPhase;
 };
 
 // The contents of the compartments, each loaded at most once, and any further weights.

@@ -19,13 +19,14 @@ namespace {
 
 }
 
-TankLoad::TankLoad(CompartmentId tank, TankAmount contents, Density contentsDensity, CargoPhase contentsPhase)
-    : compartment(std::move(tank)), amount(contents), density(contentsDensity), phase(contentsPhase) {
-    if (density <= Density{0.0}) {
-        throw LoadicatorError("compartment " + compartment.value() + ": the density must be positive");
+TankLoad::TankLoad(CompartmentId compartment, TankAmount amount, Density density, CargoPhase phase)
+    : compartmentId(std::move(compartment)), contents(amount), contentsDensity(density),
+      contentsPhase(phase) {
+    if (contentsDensity <= Density{0.0}) {
+        throw LoadicatorError("compartment " + compartmentId.value() + ": the density must be positive");
     }
-    if (!std::visit([](auto value) { return isValid(value); }, amount)) {
-        throw LoadicatorError("compartment " + compartment.value() +
+    if (!std::visit([](auto value) { return isValid(value); }, contents)) {
+        throw LoadicatorError("compartment " + compartmentId.value() +
                               ": the mass may not be negative and the fill must lie within 0 .. 100 %");
     }
 }
@@ -37,9 +38,11 @@ LoadingCondition::LoadingCondition(std::string name) : conditionName(std::move(n
 }
 
 void LoadingCondition::addTankLoad(TankLoad load) {
-    const auto sameCompartment = [&](const TankLoad& other) { return other.compartment == load.compartment; };
+    const auto sameCompartment = [&](const TankLoad& other) {
+        return other.compartment() == load.compartment();
+    };
     if (std::any_of(tanks.begin(), tanks.end(), sameCompartment)) {
-        throw LoadicatorError("compartment " + load.compartment.value() + " is loaded twice");
+        throw LoadicatorError("compartment " + load.compartment().value() + " is loaded twice");
     }
     tanks.push_back(std::move(load));
 }
