@@ -5,7 +5,8 @@
 #include "loadicator/util/error.h"
 
 #include <algorithm>
-#include <array>
+#include <functional>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -32,8 +33,9 @@ namespace {
 }
 
 struct ConditionColumns {
-    explicit ConditionColumns(const CsvDocument& document)
-        : kind(document.column(schema::condition::kind)), id(document.column(schema::condition::id)),
+    explicit ConditionColumns(const CsvDocument& conditionDocument)
+        : document(conditionDocument), kind(document.column(schema::condition::kind)),
+          id(document.column(schema::condition::id)),
           mass(document.optionalColumn(schema::condition::mass)),
           fillPercent(document.optionalColumn(schema::condition::fillPercent)),
           density(document.optionalColumn(schema::condition::density)),
@@ -43,27 +45,24 @@ struct ConditionColumns {
           vcg(document.optionalColumn(schema::condition::vcg)),
           fsm(document.optionalColumn(schema::condition::fsm)) {}
 
-    CsvColumn kind, id, mass, fillPercent, density, phase, lcg, tcg, vcg, fsm;
-
-    [[nodiscard]] std::array<const CsvColumn*, schema::condition::columns.size()> all() const {
-        return {&kind, &id, &mass, &fillPercent, &density, &phase, &lcg, &tcg, &vcg, &fsm};
-    }
-};
-
-// Fails if the row has a value in a column that rows of its kind do not use.
-void requireOnly(const CsvRow& row, const ConditionColumns& columns, std::span<const std::string_view> used,
-                 std::string_view kind) {
-    for (const CsvColumn* column : columns.all()) {
-        const bool isUsed = std::find(used.begin(), used.end(), column->name()) != used.end();
-        if (!isUsed && !row.text(*column).empty()) {
-            throw LoadicatorError(row.location() + ": a row of kind '" + std::string(kind) +
-                                  "' takes no value in column '" + std::string(column->name()) + "'");
+    // Fails if the row has a value in a column that rows of its kind do not use.
+    void requireOnly(const CsvRow& row, std::span<const std::string_view> used,
+                     std::string_view rowKind) const {
+        for (const std::string_view name : schema::condition::columns) {
+            const bool isUsed = std::find(used.begin(), used.end(), name) != used.end();
+            if (!isUsed && !row.text(document.optionalColumn(name)).empty()) {
+                throw LoadicatorError(row.location() + ": a row of kind '" + std::string(rowKind) +
+                                      "' takes no value in column '" + std::string(name) + "'");
+            }
         }
     }
-}
+
+    const CsvDocument& document;
+    CsvColumn kind, id, mass, fillPercent, density, phase, lcg, tcg, vcg, fsm;
+};
 
 [[nodiscard]] TankLoad tankLoadOf(const CsvRow& row, const ConditionColumns& columns) {
-    requireOnly(row, columns, schema::condition::tankColumns, schema::condition::tank);
+    columns.requireOnly(row, schema::condition::tankColumns, schema::condition::tank);
     const auto mass = row.optionalNumber(columns.mass);
     const auto fillPercent = row.optionalNumber(columns.fillPercent);
     if (mass.has_value() == fillPercent.has_value()) {
@@ -78,7 +77,7 @@ void requireOnly(const CsvRow& row, const ConditionColumns& columns, std::span<c
 }
 
 [[nodiscard]] WeightItem weightOf(const CsvRow& row, const ConditionColumns& columns) {
-    requireOnly(row, columns, schema::condition::weightColumns, schema::condition::weight);
+    columns.requireOnly(row, schema::condition::weightColumns, schema::condition::weight);
     return WeightItem{.name = std::string(row.text(columns.id)),
                       .mass = Mass{row.number(columns.mass)},
                       .centre = Position{Length{row.number(columns.lcg)}, Length{row.number(columns.tcg)},
@@ -94,7 +93,7 @@ void requireOnly(const CsvRow& row, const ConditionColumns& columns, std::span<c
         if (row.text(columns.kind) != schema::condition::name) {
             continue;
         }
-        requireOnly(row, columns, schema::condition::nameColumns, schema::condition::name);
+        columns.requireOnly(row, schema::condition::nameColumns, schema::condition::name);
         if (nameRow) {
             throw LoadicatorError(row.location() + ": the condition is already named at " +
                                   nameRow->location());
@@ -112,16 +111,28 @@ void requireOnly(const CsvRow& row, const ConditionColumns& columns, std::span<c
     const CsvDocument document = CsvDocument::readFile(file, schema::ship::columns);
     const CsvColumn parameter = document.column(schema::ship::parameter);
     const CsvColumn value = document.column(schema::ship::value);
-    const auto lengthOf = [&](std::string_view name) {
-        for (const CsvRow row : document.rows()) {
-            if (row.text(parameter) == name) {
-                return Length{row.number(value)};
-            }
+    std::map<std::string, Length, std::less<>> lengths;
+    for (const CsvRow row : document.rows()) {
+        const std::string name{row.text(parameter)};
+        if (std::find(schema::ship::parameters.begin(), schema::ship::parameters.end(), name) ==
+            schema::ship::parameters.end()) {
+            throw LoadicatorError(row.location() + ": unknown parameter '" + name + "'");
         }
-        throw LoadicatorError(document.sourceName() + ": missing parameter '" + std::string(name) + "'");
+        if (!lengths.emplace(name, Length{row.number(value)}).second) {
+            throw LoadicatorError(row.location() + ": parameter '" + name + "' is given twice");
+        }
+    }
+    const auto lengthOf = [&](std::string_view name) {
+        const auto found = lengths.find(name);
+        if (found == lengths.end()) {
+            throw LoadicatorError(document.sourceName() + ": missing parameter '" + std::string(name) + "'");
+        }
+        return found->second;
     };
-    return ShipParticulars{.lengthBetweenPerpendiculars = lengthOf(schema::ship::lengthBetweenPerpendiculars),
-                           .referencePointX = lengthOf(schema::ship::referencePointX)};
+    const Length lengthBetweenPerpendiculars = lengthOf(schema::ship::lengthBetweenPerpendiculars);
+    const Length referencePointX = lengthOf(schema::ship::referencePointX);
+    return withContext(document.sourceName(),
+                       [&] { return ShipParticulars(lengthBetweenPerpendiculars, referencePointX); });
 }
 
 [[nodiscard]] HydrostaticTable loadHydrostatics(const fs::path& evenKeelFile, const fs::path& trimGridFile) {
@@ -214,7 +225,8 @@ LoadingCondition loadLoadingCondition(const fs::path& file) {
             TankLoad load = tankLoadOf(row, columns);
             withContext(row.location(), [&] { condition.addTankLoad(std::move(load)); });
         } else if (kind == schema::condition::weight) {
-            condition.addFixedWeight(weightOf(row, columns));
+            WeightItem weight = weightOf(row, columns);
+            withContext(row.location(), [&] { condition.addFixedWeight(std::move(weight)); });
         } else if (kind != schema::condition::name) {
             throw LoadicatorError(row.location() + ": kind must be 'tank', 'weight' or 'name', got '" +
                                   std::string(kind) + "'");

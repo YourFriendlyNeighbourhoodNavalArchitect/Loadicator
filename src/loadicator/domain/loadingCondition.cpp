@@ -20,12 +20,12 @@ namespace {
 }
 
 TankLoad::TankLoad(CompartmentId compartment, TankAmount amount, Density density, CargoPhase phase)
-    : compartmentId(std::move(compartment)), contents(amount), contentsDensity(density),
+    : compartmentId(std::move(compartment)), tankAmount(amount), contentsDensity(density),
       contentsPhase(phase) {
     if (contentsDensity <= Density{0.0}) {
         throw LoadicatorError("compartment " + compartmentId.value() + ": the density must be positive");
     }
-    if (!std::visit([](auto value) { return isValid(value); }, contents)) {
+    if (!std::visit([](auto value) { return isValid(value); }, tankAmount)) {
         throw LoadicatorError("compartment " + compartmentId.value() +
                               ": the mass may not be negative and the fill must lie within 0 .. 100 %");
     }
@@ -48,6 +48,9 @@ void LoadingCondition::addTankLoad(TankLoad load) {
 }
 
 void LoadingCondition::addFixedWeight(WeightItem weight) {
+    if (weight.name.empty()) {
+        throw LoadicatorError("a weight needs a name");
+    }
     weights.push_back(std::move(weight));
 }
 

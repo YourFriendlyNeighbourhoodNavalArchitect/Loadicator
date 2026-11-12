@@ -134,11 +134,13 @@ private:
 
     void addWeight(const SourceLine& line, const std::string& name) {
         const auto values = entry(line);
-        current->condition.addFixedWeight(
-            WeightItem{.name = name,
-                       .mass = Mass{values[0]},
-                       .centre = Position{Length{values[2]}, Length{values[3]}, Length{values[4]}},
-                       .freeSurfaceMoment = Moment{values[5]}});
+        withContext(source.location(line), [&] {
+            current->condition.addFixedWeight(
+                WeightItem{.name = name,
+                           .mass = Mass{values[0]},
+                           .centre = Position{Length{values[2]}, Length{values[3]}, Length{values[4]}},
+                           .freeSurfaceMoment = Moment{values[5]}});
+        });
     }
 
     // The values of an entry are its last numbers: the description before them may hold digits, and a

@@ -4,10 +4,19 @@
 
 namespace loadicator {
 
-struct ShipParticulars {
-    Length lengthBetweenPerpendiculars;
+// The length between perpendiculars, which is positive, and the reference point of the hydrostatic tables,
+// which lies between the perpendiculars.
+class ShipParticulars {
+public:
+    ShipParticulars(Length lengthBetweenPerpendiculars, Length referencePointX);
+
+    [[nodiscard]] Length lengthBetweenPerpendiculars() const { return length; }
     // From the aft perpendicular; the hydrostatic tables measure their draught here.
-    Length referencePointX;
+    [[nodiscard]] Length referencePointX() const { return referencePoint; }
+
+private:
+    Length length;
+    Length referencePoint;
 };
 
 }

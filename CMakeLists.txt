@@ -88,7 +88,7 @@ add_loadicator_layer(numeric
     SOURCES interpolation.cpp spline.cpp splineSurface.cpp
     DEPENDS util)
 add_loadicator_layer(domain
-    SOURCES compartmentTable.cpp hydrostaticTable.cpp loadingCondition.cpp
+    SOURCES compartmentTable.cpp hydrostaticTable.cpp loadingCondition.cpp shipParticulars.cpp
     DEPENDS numeric)
 add_loadicator_layer(calc
     SOURCES analysis.cpp equilibrium.cpp loadResolution.cpp massSummary.cpp stability.cpp

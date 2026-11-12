@@ -66,8 +66,8 @@ private:
     CsvText csv;
     csv.header({schema::ship::parameter, schema::ship::value});
     csv.row({std::string(schema::ship::lengthBetweenPerpendiculars),
-             number(ship.lengthBetweenPerpendiculars.value(), 3)});
-    csv.row({std::string(schema::ship::referencePointX), number(ship.referencePointX.value(), 3)});
+             number(ship.lengthBetweenPerpendiculars().value(), 3)});
+    csv.row({std::string(schema::ship::referencePointX), number(ship.referencePointX().value(), 3)});
     return csv.str();
 }
 

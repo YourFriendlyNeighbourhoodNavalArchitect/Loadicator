@@ -20,7 +20,7 @@ The comparison lists, for each key metric, the mean absolute and the mean deviat
 
 ## Output Files
 
-The program reads every one of these files by the names of its columns, in any order. A column that the file does not define, or that is named twice, is an error. The files may begin with a UTF-8 byte order mark.
+Each of these files is read by the names of its columns, in any order. A column that the file does not define, or that is named twice, is an error. The files may begin with a UTF-8 byte order mark.
 
 - `ship.csv`: Length between perpendiculars and longitudinal position of the reference point of the hydrostatic tables.
 - `hydrostatics/evenKeel.csv`: Centre of flotation `lcf` and vertical centre of buoyancy `vcb` at each `draught` on even keel.

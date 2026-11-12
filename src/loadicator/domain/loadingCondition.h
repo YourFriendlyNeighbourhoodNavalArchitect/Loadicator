@@ -21,18 +21,18 @@ public:
     TankLoad(CompartmentId compartment, TankAmount amount, Density density, CargoPhase phase);
 
     [[nodiscard]] const CompartmentId& compartment() const { return compartmentId; }
-    [[nodiscard]] const TankAmount& amount() const { return contents; }
+    [[nodiscard]] const TankAmount& amount() const { return tankAmount; }
     [[nodiscard]] Density density() const { return contentsDensity; }
     [[nodiscard]] CargoPhase phase() const { return contentsPhase; }
 
 private:
     CompartmentId compartmentId;
-    TankAmount contents;
+    TankAmount tankAmount;
     Density contentsDensity;
     CargoPhase contentsPhase;
 };
 
-// The contents of the compartments, each loaded at most once, and any further weights.
+// The contents of the compartments, each loaded at most once, and any further weights, each named.
 class LoadingCondition {
 public:
     explicit LoadingCondition(std::string name);

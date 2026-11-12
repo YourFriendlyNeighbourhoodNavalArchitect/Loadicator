@@ -11,6 +11,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -19,26 +20,29 @@ namespace fs = std::filesystem;
 using namespace loadicator::extractor;
 
 [[nodiscard]] ShipData extract(const fs::path& sourceDirectory, const fs::path& pdfTextDirectory) {
-    ShipData data;
-    data.hydrostatics = extractHydrostatics(SourceText::readFile(pdfTextDirectory / "hydrostaticTables.txt"));
+    HydrostaticData hydrostatics =
+        extractHydrostatics(SourceText::readFile(pdfTextDirectory / "hydrostaticTables.txt"));
 
-    data.compartments = extractSoundingTables(SourceText::readFile(sourceDirectory / "soundingTables.txt"));
+    std::vector<CompartmentData> compartments =
+        extractSoundingTables(SourceText::readFile(sourceDirectory / "soundingTables.txt"));
     std::vector<fs::path> holdFiles;
     for (const auto& entry : fs::directory_iterator(sourceDirectory / "cargoHolds")) {
         holdFiles.push_back(entry.path());
     }
     std::sort(holdFiles.begin(), holdFiles.end());
     for (const fs::path& file : holdFiles) {
-        data.compartments.push_back(extractHoldTable(SourceText::readFile(file)));
+        compartments.push_back(extractHoldTable(SourceText::readFile(file)));
     }
 
     std::set<std::string, std::less<>> tabulated;
-    for (const CompartmentData& table : data.compartments) {
+    for (const CompartmentData& table : compartments) {
         tabulated.insert(table.id);
     }
-    data.conditions = extractLoadingConditions(
+    std::vector<BookCondition> conditions = extractLoadingConditions(
         SourceText::readFile(pdfTextDirectory / "trimAndStabilityBook.txt"), tabulated);
-    return data;
+    return ShipData{.hydrostatics = std::move(hydrostatics),
+                    .compartments = std::move(compartments),
+                    .conditions = std::move(conditions)};
 }
 
 }

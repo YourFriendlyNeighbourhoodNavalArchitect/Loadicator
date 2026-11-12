@@ -113,7 +113,7 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
     const auto lever = [&](double trimValue) {
         const Length trim{trimValue};
         const Length draught = draughtForTrim(trimValue);
-        const Ratio tangent = trim / ship.lengthBetweenPerpendiculars;
+        const Ratio tangent = trim / ship.lengthBetweenPerpendiculars();
         return (hydrostatics.lcbAt(draught, trim) - mass.centreOfGravity.x -
                 (hydrostatics.vcbAt(draught) - mass.centreOfGravity.z) * tangent)
             .value();
@@ -126,7 +126,8 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
         }
         const Length trim{numeric::findRoot(lever, trims, trimTolerance)};
         const Length draught = draughtForTrim(trim.value());
-        const Length draughtAft = draught + trim * (ship.referencePointX / ship.lengthBetweenPerpendiculars);
+        const Length draughtAft =
+            draught + trim * (ship.referencePointX() / ship.lengthBetweenPerpendiculars());
         return FloatingPosition{.draughtMidships = draught,
                                 .draughtAft = draughtAft,
                                 .draughtForward = draughtAft - trim,

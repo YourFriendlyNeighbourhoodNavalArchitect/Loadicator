@@ -1,5 +1,6 @@
 #include "hydrostaticTables.h"
 
+#include "loadicator/util/error.h"
 #include "loadicator/util/text.h"
 
 #include <algorithm>
@@ -27,9 +28,9 @@ public:
         if (!lengthBetweenPerpendiculars || !referencePointX) {
             throw source.error("the length between perpendiculars or the reference point was not found");
         }
-        HydrostaticData data{.particulars = ShipParticulars{.lengthBetweenPerpendiculars =
-                                                                Length{*lengthBetweenPerpendiculars},
-                                                            .referencePointX = Length{*referencePointX}}};
+        HydrostaticData data{.particulars = withContext(source.name(), [&] {
+            return ShipParticulars(Length{*lengthBetweenPerpendiculars}, Length{*referencePointX});
+        })};
         for (const auto& [point, value] : lcf) {
             data.evenKeel.push_back(EvenKeelHydrostatics{
                 .draught = Length{point.first}, .lcf = Length{value}, .vcb = Length{at(vcb, point, "VCB")}});
