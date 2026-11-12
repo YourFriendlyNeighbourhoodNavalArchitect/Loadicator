@@ -85,7 +85,7 @@ endfunction()
 add_loadicator_layer(util
     SOURCES text.cpp)
 add_loadicator_layer(numeric
-    SOURCES interpolation.cpp spline.cpp
+    SOURCES interpolation.cpp spline.cpp splineSurface.cpp
     DEPENDS util)
 add_loadicator_layer(domain
     SOURCES compartmentTable.cpp hydrostaticTable.cpp loadingCondition.cpp

@@ -30,44 +30,49 @@ namespace {
 
 }
 
-HydrostaticTable::HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel,
-                                   const std::vector<TrimGridPoint>& trimGrid)
-    : evenKeelDraughts(axis(magnitudes(evenKeel, &EvenKeelHydrostatics::draught), "even-keel draughts")),
-      lcf(magnitudes(evenKeel, &EvenKeelHydrostatics::lcf)),
-      vcb(magnitudes(evenKeel, &EvenKeelHydrostatics::vcb)),
-      gridDraughts(axis(distinctValues(trimGrid, &TrimGridPoint::draught), "grid draughts")),
-      gridTrims(axis(distinctValues(trimGrid, &TrimGridPoint::trim), "grid trims")) {
-    std::vector<TrimGridPoint> points = trimGrid;
-    std::sort(points.begin(), points.end(), [](const TrimGridPoint& lhs, const TrimGridPoint& rhs) {
+HydrostaticTable::TrimGrid HydrostaticTable::orderedGrid(const std::vector<TrimGridPoint>& trimGrid) {
+    TrimGrid grid{.draughts = axis(distinctValues(trimGrid, &TrimGridPoint::draught), "grid draughts"),
+                  .trims = axis(distinctValues(trimGrid, &TrimGridPoint::trim), "grid trims"),
+                  .points = trimGrid};
+    std::sort(grid.points.begin(), grid.points.end(), [](const TrimGridPoint& lhs, const TrimGridPoint& rhs) {
         return std::pair{lhs.trim, lhs.draught} < std::pair{rhs.trim, rhs.draught};
     });
-    const std::size_t draughtCount = gridDraughts.size();
-    bool complete = points.size() == draughtCount * gridTrims.size();
-    for (std::size_t index = 0; complete && index < points.size(); ++index) {
-        complete = points[index].trim.value() == gridTrims.nodes()[index / draughtCount] &&
-                   points[index].draught.value() == gridDraughts.nodes()[index % draughtCount];
+    const std::size_t draughtCount = grid.draughts.size();
+    bool complete = grid.points.size() == draughtCount * grid.trims.size();
+    for (std::size_t index = 0; complete && index < grid.points.size(); ++index) {
+        complete = grid.points[index].trim.value() == grid.trims.nodes()[index / draughtCount] &&
+                   grid.points[index].draught.value() == grid.draughts.nodes()[index % draughtCount];
     }
     if (!complete) {
         throw LoadicatorError("hydrostatic trim grid does not hold every draught at every trim exactly once");
     }
+    return grid;
+}
 
-    for (auto first = points.begin(); first != points.end();
-         first += static_cast<std::ptrdiff_t>(draughtCount)) {
-        const std::vector<TrimGridPoint> alongDraught(first,
-                                                      first + static_cast<std::ptrdiff_t>(draughtCount));
-        displacement.emplace_back(gridDraughts, magnitudes(alongDraught, &TrimGridPoint::displacement));
-        lcb.emplace_back(gridDraughts, magnitudes(alongDraught, &TrimGridPoint::lcb));
-        kmt.emplace_back(gridDraughts, magnitudes(alongDraught, &TrimGridPoint::kmt));
-    }
+HydrostaticTable::HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel,
+                                   const std::vector<TrimGridPoint>& trimGrid)
+    : HydrostaticTable(evenKeel, orderedGrid(trimGrid)) {}
 
-    for (std::size_t node = 0; node < gridTrims.size(); ++node) {
-        std::vector<double> unitAtNode(gridTrims.size(), 0.0);
-        unitAtNode[node] = 1.0;
-        trimBasis.emplace_back(gridTrims, std::move(unitAtNode));
+HydrostaticTable::HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel, const TrimGrid& grid)
+    : evenKeelDraughts(axis(magnitudes(evenKeel, &EvenKeelHydrostatics::draught), "even-keel draughts")),
+      lcf(magnitudes(evenKeel, &EvenKeelHydrostatics::lcf)),
+      vcb(magnitudes(evenKeel, &EvenKeelHydrostatics::vcb)),
+      gridDraughts(grid.draughts),
+      gridTrims(grid.trims),
+      displacement(grid.draughts, grid.trims, magnitudes(grid.points, &TrimGridPoint::displacement)),
+      lcb(grid.draughts, grid.trims, magnitudes(grid.points, &TrimGridPoint::lcb)),
+      kmt(grid.draughts, grid.trims, magnitudes(grid.points, &TrimGridPoint::kmt)) {
+    // The LCF and the VCB are looked up at the draughts that the trim grid allows.
+    if (evenKeelDraughts.front() > gridDraughts.front() || evenKeelDraughts.back() < gridDraughts.back()) {
+        throw LoadicatorError(
+            std::format("the even-keel hydrostatics ({} .. {} m) do not cover the draughts of the trim grid "
+                        "({} .. {} m)",
+                        evenKeelDraughts.front(), evenKeelDraughts.back(), gridDraughts.front(),
+                        gridDraughts.back()));
     }
 }
 
-double HydrostaticTable::valueAt(const Surface& surface, Length draught, Length trim) const {
+double HydrostaticTable::valueAt(const numeric::SplineSurface& surface, Length draught, Length trim) const {
     if (draught < minimumDraught() || draught > maximumDraught()) {
         throw LoadicatorError(
             std::format("a draught of {:.3f} m is outside the hydrostatic tables ({} .. {} m)",
@@ -77,11 +82,7 @@ double HydrostaticTable::valueAt(const Surface& surface, Length draught, Length 
         throw LoadicatorError(std::format("a trim of {:.3f} m is outside the hydrostatic tables ({} .. {} m)",
                                           trim.value(), minimumTrim().value(), maximumTrim().value()));
     }
-    double value = 0.0;
-    for (std::size_t node = 0; node < surface.size(); ++node) {
-        value += trimBasis[node].valueAt(trim.value()) * surface[node].valueAt(draught.value());
-    }
-    return value;
+    return surface.valueAt(draught.value(), trim.value());
 }
 
 Mass HydrostaticTable::displacementAt(Length draught, Length trim) const {

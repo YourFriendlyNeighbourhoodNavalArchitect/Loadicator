@@ -10,8 +10,11 @@ class NaturalCubicSpline {
 public:
     NaturalCubicSpline(Abscissa nodes, std::vector<double> ordinates);
 
-    // Fails outside the nodes: the spline does not extrapolate.
+    // Fails outside the nodes, beyond the rounding tolerance of Abscissa::locate: the spline does not
+    // extrapolate.
     [[nodiscard]] double valueAt(double x) const;
+    // The bracket must have been located on the nodes of this spline.
+    [[nodiscard]] double valueAt(Bracket bracket) const;
 
 private:
     Abscissa abscissa;

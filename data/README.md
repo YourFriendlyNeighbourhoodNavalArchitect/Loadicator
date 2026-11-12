@@ -25,7 +25,7 @@ The program reads every one of these files by the names of its columns, in any o
 - `ship.csv`: Length between perpendiculars and longitudinal position of the reference point of the hydrostatic tables.
 - `hydrostatics/evenKeel.csv`: Centre of flotation `lcf` and vertical centre of buoyancy `vcb` at each `draught` on even keel.
 - `hydrostatics/trimGrid.csv`: Values of `displacement`, `lcb` and `kmt` at each `draught` and `trim`, for trims from -2 m to 6 m.
-- `compartments/<id>.csv`: Capacity table of a compartment, with the centre `lcg`, `tcg`, `vcg` and the free-surface second moment of area `inertia` of its contents at each `volume`. The last row is the full compartment.
+- `compartments/<id>.csv`: Capacity table of a compartment, with the centre `lcg`, `tcg`, `vcg` and the free-surface second moment of area `inertia` of its contents at each `volume`. The first row is the lowest sounding and the last row is the full compartment. An empty compartment has no free surface, and a volume between empty and the lowest sounding is not described by the table and is rejected.
 - `conditions/condNN.csv`: Loading conditions of the trim and stability book.
 - `conditions/expected.csv`: Results printed in the book for each loading condition, namely the total weight and its centre, the draughts, the trim, the heel, the transverse metacentre and the metacentric height without and with free-surface correction.
 

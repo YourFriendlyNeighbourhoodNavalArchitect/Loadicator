@@ -29,9 +29,9 @@ Abscissa::Abscissa(std::vector<double> nodes) : nodeValues(std::move(nodes)) {
     }
 }
 
-Bracket Abscissa::locate(double x, OutOfRange policy) const {
+Bracket Abscissa::locate(double x) const {
     const double tolerance = relativeRangeTolerance * (back() - front());
-    if (policy == OutOfRange::reject && (x < front() - tolerance || x > back() + tolerance)) {
+    if (x < front() - tolerance || x > back() + tolerance) {
         throw LoadicatorError("value " + std::to_string(x) + " is outside the tabulated range [" +
                               std::to_string(front()) + ", " + std::to_string(back()) + "]");
     }

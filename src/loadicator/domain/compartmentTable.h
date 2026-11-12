@@ -42,9 +42,13 @@ public:
     [[nodiscard]] const CompartmentId& id() const { return compartmentId; }
     [[nodiscard]] Volume capacity() const { return Volume{volumes.back()}; }
 
+    // Fails for a volume between empty and the lowest sounding of the table, which the table does not
+    // describe, and for a volume beyond the capacity, save for the rounding of masses.
     [[nodiscard]] CompartmentState stateAt(Volume volume) const;
 
 private:
+    [[nodiscard]] Position centroidAt(numeric::Bracket bracket) const;
+
     CompartmentId compartmentId;
     numeric::Abscissa volumes;
     std::vector<double> lcg;

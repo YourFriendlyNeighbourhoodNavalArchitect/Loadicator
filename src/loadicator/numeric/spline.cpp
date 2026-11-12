@@ -39,9 +39,15 @@ NaturalCubicSpline::NaturalCubicSpline(Abscissa nodes, std::vector<double> value
 }
 
 double NaturalCubicSpline::valueAt(double x) const {
+    return valueAt(abscissa.locate(x));
+}
+
+double NaturalCubicSpline::valueAt(Bracket bracket) const {
     const auto nodes = abscissa.nodes();
-    const Bracket bracket = abscissa.locate(x);
     const std::size_t lower = bracket.lower;
+    if (lower + 1 >= nodes.size()) {
+        throw LoadicatorError("spline bracket does not fit the nodes");
+    }
     const double width = nodes[lower + 1] - nodes[lower];
     const double towardsUpper = bracket.weight;
     const double towardsLower = 1.0 - towardsUpper;

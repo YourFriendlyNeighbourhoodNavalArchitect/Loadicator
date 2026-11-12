@@ -1,9 +1,10 @@
 #pragma once
 
 #include "loadicator/numeric/interpolation.h"
-#include "loadicator/numeric/spline.h"
+#include "loadicator/numeric/splineSurface.h"
 #include "loadicator/util/quantity.h"
 
+#include <span>
 #include <vector>
 
 namespace loadicator {
@@ -39,11 +40,22 @@ public:
     [[nodiscard]] Length maximumDraught() const { return Length{gridDraughts.back()}; }
     [[nodiscard]] Length minimumTrim() const { return Length{gridTrims.front()}; }
     [[nodiscard]] Length maximumTrim() const { return Length{gridTrims.back()}; }
+    // The trims at which the hydrostatics are tabulated, in metres.
+    [[nodiscard]] std::span<const double> tabulatedTrims() const { return gridTrims.nodes(); }
 
 private:
-    using Surface = std::vector<numeric::NaturalCubicSpline>;
+    // The axes of the trim grid and its points, ordered by trim and then by draught.
+    struct TrimGrid {
+        numeric::Abscissa draughts;
+        numeric::Abscissa trims;
+        std::vector<TrimGridPoint> points;
+    };
 
-    [[nodiscard]] double valueAt(const Surface& surface, Length draught, Length trim) const;
+    [[nodiscard]] static TrimGrid orderedGrid(const std::vector<TrimGridPoint>& trimGrid);
+
+    HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel, const TrimGrid& grid);
+
+    [[nodiscard]] double valueAt(const numeric::SplineSurface& surface, Length draught, Length trim) const;
 
     numeric::Abscissa evenKeelDraughts;
     std::vector<double> lcf;
@@ -51,14 +63,9 @@ private:
 
     numeric::Abscissa gridDraughts;
     numeric::Abscissa gridTrims;
-    // One spline over draught per tabulated trim.
-    Surface displacement;
-    Surface lcb;
-    Surface kmt;
-    // A natural cubic spline is linear in its ordinates, so the spline over trim through the values at one
-    // draught is the sum of those values, each weighted by the spline that is one at its trim and zero at the
-    // others. These weights depend on the trim alone, which spares a spline over trim for every lookup.
-    std::vector<numeric::NaturalCubicSpline> trimBasis;
+    numeric::SplineSurface displacement;
+    numeric::SplineSurface lcb;
+    numeric::SplineSurface kmt;
 };
 
 }
