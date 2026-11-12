@@ -51,9 +51,6 @@ void writeReport(std::ostream& output, const Analysis& analysis) {
     writeQuantity(output, "Trim", position.trim.value(), "m");
     writeQuantity(output, "LCB", position.lcb.value(), "m from AP");
     writeQuantity(output, "LCF", position.lcf.value(), "m from AP");
-    if (position.trimExtrapolated) {
-        output << "  Note: trim lies outside the tabulated range; hydrostatics extrapolated.\n";
-    }
     output << '\n';
 
     output << "INITIAL STABILITY\n" << rule;

@@ -40,22 +40,10 @@ NaturalCubicSpline::NaturalCubicSpline(Abscissa nodes, std::vector<double> value
 
 double NaturalCubicSpline::valueAt(double x) const {
     const auto nodes = abscissa.nodes();
-    const std::size_t last = nodes.size() - 1;
-    if (x < nodes.front()) {
-        const double width = nodes[1] - nodes[0];
-        const double slope = (ordinates[1] - ordinates[0]) / width - width * curvatures[1] / 6.0;
-        return ordinates[0] + slope * (x - nodes[0]);
-    }
-    if (x > nodes.back()) {
-        const double width = nodes[last] - nodes[last - 1];
-        const double slope =
-            (ordinates[last] - ordinates[last - 1]) / width + width * curvatures[last - 1] / 6.0;
-        return ordinates[last] + slope * (x - nodes[last]);
-    }
-
-    const std::size_t lower = abscissa.locate(x).lower;
+    const Bracket bracket = abscissa.locate(x);
+    const std::size_t lower = bracket.lower;
     const double width = nodes[lower + 1] - nodes[lower];
-    const double towardsUpper = (x - nodes[lower]) / width;
+    const double towardsUpper = bracket.weight;
     const double towardsLower = 1.0 - towardsUpper;
     return towardsLower * ordinates[lower] + towardsUpper * ordinates[lower + 1] +
            ((towardsLower * towardsLower * towardsLower - towardsLower) * curvatures[lower] +

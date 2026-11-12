@@ -10,6 +10,7 @@ class NaturalCubicSpline {
 public:
     NaturalCubicSpline(Abscissa nodes, std::vector<double> ordinates);
 
+    // Fails outside the nodes: the spline does not extrapolate.
     [[nodiscard]] double valueAt(double x) const;
 
 private:

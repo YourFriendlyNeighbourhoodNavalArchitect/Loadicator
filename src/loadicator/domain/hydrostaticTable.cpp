@@ -67,6 +67,10 @@ double HydrostaticTable::valueAt(const Surface& surface, Length draught, Length 
             std::format("a draught of {:.3f} m is outside the hydrostatic tables ({} .. {} m)",
                         draught.value(), minimumDraught().value(), maximumDraught().value()));
     }
+    if (trim < minimumTrim() || trim > maximumTrim()) {
+        throw LoadicatorError(std::format("a trim of {:.3f} m is outside the hydrostatic tables ({} .. {} m)",
+                                          trim.value(), minimumTrim().value(), maximumTrim().value()));
+    }
     std::vector<double> alongTrim;
     alongTrim.reserve(surface.size());
     for (const numeric::NaturalCubicSpline& alongDraught : surface) {

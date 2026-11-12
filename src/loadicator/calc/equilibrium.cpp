@@ -11,8 +11,6 @@ namespace {
 
 constexpr double draughtTolerance = 1e-6;
 constexpr double trimTolerance = 1e-6;
-constexpr double trimSearchStep = 1.0;
-constexpr int maximumTrimSearchSteps = 10;
 
 }
 
@@ -45,14 +43,11 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
             .value();
     };
 
-    numeric::Interval trims =
+    const numeric::Interval trims =
         numeric::evaluate(lever, hydrostatics.minimumTrim().value(), hydrostatics.maximumTrim().value());
-    for (int step = 0; !trims.bracketsRoot(); ++step) {
-        if (step == maximumTrimSearchSteps) {
-            throw LoadicatorError(
-                std::format("no trim equilibrium within {:.1f} .. {:.1f} m", trims.lower, trims.upper));
-        }
-        trims = numeric::evaluate(lever, trims.lower - trimSearchStep, trims.upper + trimSearchStep);
+    if (!trims.bracketsRoot()) {
+        throw LoadicatorError(std::format("no trim equilibrium within the hydrostatic tables ({} .. {} m)",
+                                          trims.lower, trims.upper));
     }
 
     const Length trim{numeric::findRoot(lever, trims, trimTolerance)};
@@ -64,9 +59,7 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
                             .trim = trim,
                             .lcb = hydrostatics.lcbAt(draught, trim),
                             .lcf = hydrostatics.lcfAt(draught),
-                            .kmt = hydrostatics.kmtAt(draught, trim),
-                            .trimExtrapolated =
-                                trim < hydrostatics.minimumTrim() || trim > hydrostatics.maximumTrim()};
+                            .kmt = hydrostatics.kmtAt(draught, trim)};
 }
 
 }

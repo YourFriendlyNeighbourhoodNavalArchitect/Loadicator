@@ -16,7 +16,6 @@ struct FloatingPosition {
     Length lcb;
     Length lcf;
     Length kmt;
-    bool trimExtrapolated = false;
 };
 
 [[nodiscard]] FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTable& hydrostatics,
