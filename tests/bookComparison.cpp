@@ -72,7 +72,8 @@ struct Deviation {
 
 int run(const std::filesystem::path& dataDirectory) {
     const Ship ship = io::loadShip(dataDirectory);
-    const io::CsvDocument bookResults = io::CsvDocument::readFile(dataDirectory / book::resultsFile);
+    const io::CsvDocument bookResults =
+        io::CsvDocument::readFile(dataDirectory / book::resultsFile, book::columns);
     const io::CsvColumn condition = bookResults.column(book::column::condition);
     std::array<io::CsvColumn, metrics.size()> columns;
     std::transform(metrics.begin(), metrics.end(), columns.begin(),

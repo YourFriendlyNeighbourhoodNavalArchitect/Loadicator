@@ -34,15 +34,37 @@ std::optional<double> CsvRow::optionalNumber(const CsvColumn& column) const {
     return value;
 }
 
+void CsvRow::requireOnly(std::initializer_list<CsvColumn> usedColumns, std::string_view kind) const {
+    const std::vector<std::string>& fields = document->lines[index].fields;
+    for (std::size_t field = 0; field < fields.size(); ++field) {
+        const bool used = std::any_of(usedColumns.begin(), usedColumns.end(),
+                                      [&](const CsvColumn& column) { return column.index == field; });
+        if (!used && !fields[field].empty()) {
+            throw LoadicatorError(location() + ": column '" + document->header[field] +
+                                  "' is not used by rows of kind '" + std::string(kind) + "'");
+        }
+    }
+}
+
 std::string CsvRow::location() const {
     return document->source + ":" + std::to_string(document->lines[index].number);
 }
 
-CsvDocument CsvDocument::readFile(const std::filesystem::path& path) {
-    return CsvDocument(readTextFile(path), path.string());
+CsvDocument CsvDocument::readFile(const std::filesystem::path& path,
+                                  std::span<const std::string_view> knownColumns) {
+    return CsvDocument(readTextFile(path), path.string(), knownColumns);
 }
 
-CsvDocument::CsvDocument(std::string_view content, std::string sourceName) : source(std::move(sourceName)) {
+CsvDocument::CsvDocument(std::string_view content, std::string sourceName,
+                         std::span<const std::string_view> knownColumns)
+    : source(std::move(sourceName)) {
+    // Spreadsheet programs save UTF-8 text with a byte order mark, which would otherwise become part of
+    // the name of the first column.
+    constexpr std::string_view byteOrderMark = "\xEF\xBB\xBF";
+    if (content.starts_with(byteOrderMark)) {
+        content.remove_prefix(byteOrderMark.size());
+    }
+
     std::size_t lineNumber = 0;
     for (const std::string_view rawLine : text::split(content, '\n')) {
         ++lineNumber;
@@ -57,6 +79,7 @@ CsvDocument::CsvDocument(std::string_view content, std::string sourceName) : sou
         }
         if (header.empty()) {
             header = std::move(fields);
+            checkHeader(knownColumns);
         } else if (fields.size() == header.size()) {
             lines.push_back(Line{lineNumber, std::move(fields)});
         } else {
@@ -67,6 +90,21 @@ CsvDocument::CsvDocument(std::string_view content, std::string sourceName) : sou
     }
     if (header.empty()) {
         throw LoadicatorError(source + ": no header row");
+    }
+}
+
+void CsvDocument::checkHeader(std::span<const std::string_view> knownColumns) const {
+    for (auto name = header.begin(); name != header.end(); ++name) {
+        if (std::find(knownColumns.begin(), knownColumns.end(), *name) == knownColumns.end()) {
+            std::string known;
+            for (const std::string_view column : knownColumns) {
+                known += (known.empty() ? "" : ", ") + std::string(column);
+            }
+            throw LoadicatorError(source + ": unknown column '" + *name + "'; the columns are " + known);
+        }
+        if (std::find(header.begin(), name, *name) != name) {
+            throw LoadicatorError(source + ": column '" + *name + "' is named twice");
+        }
     }
 }
 

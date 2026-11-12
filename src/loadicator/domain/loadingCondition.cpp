@@ -2,6 +2,7 @@
 
 #include "loadicator/util/error.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace loadicator {
@@ -27,6 +28,20 @@ TankLoad::TankLoad(CompartmentId tank, TankAmount contents, Density contentsDens
         throw LoadicatorError("compartment " + compartment.value() +
                               ": the mass may not be negative and the fill must lie within 0 .. 100 %");
     }
+}
+
+LoadingCondition::LoadingCondition(std::string name) : conditionName(std::move(name)) {}
+
+void LoadingCondition::addTankLoad(TankLoad load) {
+    const auto sameCompartment = [&](const TankLoad& other) { return other.compartment == load.compartment; };
+    if (std::any_of(tanks.begin(), tanks.end(), sameCompartment)) {
+        throw LoadicatorError("compartment " + load.compartment.value() + " is loaded twice");
+    }
+    tanks.push_back(std::move(load));
+}
+
+void LoadingCondition::addFixedWeight(WeightItem weight) {
+    weights.push_back(std::move(weight));
 }
 
 }

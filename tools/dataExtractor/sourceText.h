@@ -22,6 +22,8 @@ public:
     [[nodiscard]] const std::string& name() const { return fileName; }
     [[nodiscard]] const std::vector<SourceLine>& lines() const { return lineList; }
 
+    [[nodiscard]] std::string location(const SourceLine& line) const;
+
     [[nodiscard]] LoadicatorError error(std::string_view message) const;
     [[nodiscard]] LoadicatorError error(const SourceLine& line, std::string_view message) const;
 

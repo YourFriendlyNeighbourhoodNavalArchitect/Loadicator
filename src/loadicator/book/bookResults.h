@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string_view>
 
 // The results that the trim and stability book prints for each of its loading conditions. The data
@@ -24,5 +25,10 @@ inline constexpr std::string_view kmt = "kmt";
 inline constexpr std::string_view gmSolid = "gmSolid";
 inline constexpr std::string_view gm = "gm";
 }
+
+inline constexpr std::array columns{column::condition, column::displacement, column::lcg,  column::tcg,
+                                    column::kg,        column::draught,      column::trim, column::heel,
+                                    column::draughtAft, column::draughtForward, column::kmt, column::gmSolid,
+                                    column::gm};
 
 }

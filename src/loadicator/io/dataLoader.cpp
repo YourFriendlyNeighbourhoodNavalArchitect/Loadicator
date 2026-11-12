@@ -5,6 +5,7 @@
 #include "loadicator/util/error.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,22 +44,26 @@ struct ConditionColumns {
 };
 
 [[nodiscard]] TankLoad tankLoadOf(const CsvRow& row, const ConditionColumns& columns) {
+    row.requireOnly(
+        {columns.kind, columns.id, columns.mass, columns.fillPercent, columns.density, columns.phase},
+        schema::condition::tank);
     const auto mass = row.optionalNumber(columns.mass);
     const auto fillPercent = row.optionalNumber(columns.fillPercent);
     if (mass.has_value() == fillPercent.has_value()) {
         throw LoadicatorError(row.location() + ": a tank needs exactly one of 'mass' or 'fillPercent'");
     }
+    const TankAmount amount = mass ? TankAmount{Mass{*mass}} : TankAmount{ratioFromPercent(*fillPercent)};
+    const Density density{row.number(columns.density)};
+    const CargoPhase phase = phaseOf(row, columns.phase);
     return withContext(row.location(), [&] {
-        return TankLoad(CompartmentId{std::string(row.text(columns.id))},
-                        mass ? TankAmount{Mass{*mass}} : TankAmount{ratioFromPercent(*fillPercent)},
-                        Density{row.number(columns.density)}, phaseOf(row, columns.phase));
+        return TankLoad(CompartmentId{std::string(row.text(columns.id))}, amount, density, phase);
     });
 }
 
 [[nodiscard]] WeightItem weightOf(const CsvRow& row, const ConditionColumns& columns) {
-    if (row.optionalNumber(columns.fillPercent)) {
-        throw LoadicatorError(row.location() + ": a weight is given by mass, not fillPercent");
-    }
+    row.requireOnly(
+        {columns.kind, columns.id, columns.mass, columns.lcg, columns.tcg, columns.vcg, columns.fsm},
+        schema::condition::weight);
     return WeightItem{.name = std::string(row.text(columns.id)),
                       .mass = Mass{row.number(columns.mass)},
                       .centre = Position{Length{row.number(columns.lcg)}, Length{row.number(columns.tcg)},
@@ -66,8 +71,26 @@ struct ConditionColumns {
                       .freeSurfaceMoment = Moment{row.optionalNumber(columns.fsm).value_or(0.0)}};
 }
 
+// The name given by the row of kind 'name', or else the name of the file.
+[[nodiscard]] std::string conditionName(const CsvDocument& document, const ConditionColumns& columns,
+                                        const fs::path& file) {
+    std::optional<CsvRow> nameRow;
+    for (const CsvRow row : document.rows()) {
+        if (row.text(columns.kind) != schema::condition::name) {
+            continue;
+        }
+        row.requireOnly({columns.kind, columns.id}, schema::condition::name);
+        if (nameRow) {
+            throw LoadicatorError(row.location() + ": the condition is already named at " +
+                                  nameRow->location());
+        }
+        nameRow = row;
+    }
+    return nameRow ? std::string(nameRow->text(columns.id)) : file.stem().string();
+}
+
 [[nodiscard]] ShipParticulars loadShipParticulars(const fs::path& file) {
-    const CsvDocument document = CsvDocument::readFile(file);
+    const CsvDocument document = CsvDocument::readFile(file, schema::ship::columns);
     const CsvColumn parameter = document.column(schema::ship::parameter);
     const CsvColumn value = document.column(schema::ship::value);
     const auto lengthOf = [&](std::string_view name) {
@@ -85,7 +108,7 @@ struct ConditionColumns {
 [[nodiscard]] HydrostaticTable loadHydrostatics(const fs::path& evenKeelFile, const fs::path& trimGridFile) {
     std::vector<EvenKeelHydrostatics> evenKeel;
     {
-        const CsvDocument document = CsvDocument::readFile(evenKeelFile);
+        const CsvDocument document = CsvDocument::readFile(evenKeelFile, schema::evenKeel::columns);
         const CsvColumn draught = document.column(schema::evenKeel::draught);
         const CsvColumn lcf = document.column(schema::evenKeel::lcf);
         const CsvColumn vcb = document.column(schema::evenKeel::vcb);
@@ -97,7 +120,7 @@ struct ConditionColumns {
     }
     std::vector<TrimGridPoint> grid;
     {
-        const CsvDocument document = CsvDocument::readFile(trimGridFile);
+        const CsvDocument document = CsvDocument::readFile(trimGridFile, schema::trimGrid::columns);
         const CsvColumn draught = document.column(schema::trimGrid::draught);
         const CsvColumn trim = document.column(schema::trimGrid::trim);
         const CsvColumn displacement = document.column(schema::trimGrid::displacement);
@@ -115,7 +138,7 @@ struct ConditionColumns {
 }
 
 [[nodiscard]] CompartmentTable loadCompartmentTable(const fs::path& file) {
-    const CsvDocument document = CsvDocument::readFile(file);
+    const CsvDocument document = CsvDocument::readFile(file, schema::compartment::columns);
     const CsvColumn volume = document.column(schema::compartment::volume);
     const CsvColumn lcg = document.column(schema::compartment::lcg);
     const CsvColumn tcg = document.column(schema::compartment::tcg);
@@ -162,27 +185,25 @@ Ship loadShip(const fs::path& dataDirectory) {
 }
 
 LoadingCondition loadLoadingCondition(const fs::path& file) {
-    const CsvDocument document = CsvDocument::readFile(file);
+    const CsvDocument document = CsvDocument::readFile(file, schema::condition::columns);
     const ConditionColumns columns(document);
 
-    LoadingCondition condition{.name = file.stem().string()};
+    LoadingCondition condition(conditionName(document, columns, file));
     for (const CsvRow row : document.rows()) {
         const std::string_view kind = row.text(columns.kind);
         if (kind == schema::condition::tank) {
-            condition.tankLoads.push_back(tankLoadOf(row, columns));
+            TankLoad load = tankLoadOf(row, columns);
+            withContext(row.location(), [&] { condition.addTankLoad(std::move(load)); });
         } else if (kind == schema::condition::weight) {
-            condition.fixedWeights.push_back(weightOf(row, columns));
-        } else if (kind == schema::condition::name) {
-            condition.name = row.text(columns.id);
-        } else {
+            condition.addFixedWeight(weightOf(row, columns));
+        } else if (kind != schema::condition::name) {
             throw LoadicatorError(row.location() + ": kind must be 'tank', 'weight' or 'name', got '" +
                                   std::string(kind) + "'");
         }
     }
-    if (condition.tankLoads.empty() && condition.fixedWeights.empty()) {
+    if (condition.tankLoads().empty() && condition.fixedWeights().empty()) {
         throw LoadicatorError(document.sourceName() + ": loading condition is empty");
     }
     return condition;
 }
-
 }

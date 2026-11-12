@@ -2,8 +2,10 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <initializer_list>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,6 +34,9 @@ public:
     [[nodiscard]] double number(const CsvColumn& column) const;
     [[nodiscard]] std::optional<double> optionalNumber(const CsvColumn& column) const;
 
+    // Fails if the row has a value in any column but those that a row of its kind uses.
+    void requireOnly(std::initializer_list<CsvColumn> usedColumns, std::string_view kind) const;
+
     [[nodiscard]] std::string location() const;
 
 private:
@@ -41,7 +46,9 @@ private:
 
 class CsvDocument {
 public:
-    [[nodiscard]] static CsvDocument readFile(const std::filesystem::path& path);
+    // Fails if the header names a column that is not one of the known columns, or names a column twice.
+    [[nodiscard]] static CsvDocument readFile(const std::filesystem::path& path,
+                                              std::span<const std::string_view> knownColumns);
 
     [[nodiscard]] const std::string& sourceName() const { return source; }
 
@@ -62,7 +69,10 @@ private:
         std::vector<std::string> fields;
     };
 
-    CsvDocument(std::string_view content, std::string sourceName);
+    CsvDocument(std::string_view content, std::string sourceName,
+                std::span<const std::string_view> knownColumns);
+
+    void checkHeader(std::span<const std::string_view> knownColumns) const;
 
     std::string source;
     std::vector<std::string> header;

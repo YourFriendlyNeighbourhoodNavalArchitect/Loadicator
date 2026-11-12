@@ -32,8 +32,12 @@ LoadicatorError SourceText::error(std::string_view message) const {
     return LoadicatorError(fileName + ": " + std::string(message));
 }
 
+std::string SourceText::location(const SourceLine& line) const {
+    return fileName + ":" + std::to_string(line.number);
+}
+
 LoadicatorError SourceText::error(const SourceLine& line, std::string_view message) const {
-    return LoadicatorError(fileName + ":" + std::to_string(line.number) + ": " + std::string(message));
+    return LoadicatorError(location(line) + ": " + std::string(message));
 }
 
 std::vector<std::string_view> tokenize(std::string_view text) {

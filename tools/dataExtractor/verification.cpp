@@ -30,7 +30,7 @@ void verify(const ShipData& data) {
         const double total = summarizeWeights(weights).displacement.value();
         const double bookTotal = bookCondition.results.at(book::column::displacement);
         if (std::abs(total - bookTotal) > massRounding * static_cast<double>(weights.size() + 1)) {
-            throw LoadicatorError(bookCondition.condition.name + ": the entries sum to " +
+            throw LoadicatorError(bookCondition.condition.name() + ": the entries sum to " +
                                   std::to_string(total) + " t, but the book gives a total weight of " +
                                   std::to_string(bookTotal) + " t");
         }

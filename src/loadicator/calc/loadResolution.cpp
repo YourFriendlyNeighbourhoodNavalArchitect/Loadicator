@@ -32,11 +32,12 @@ namespace {
 std::vector<WeightItem> resolveLoadingCondition(const LoadingCondition& condition,
                                                 const CompartmentLibrary& compartments) {
     std::vector<WeightItem> items;
-    items.reserve(condition.tankLoads.size() + condition.fixedWeights.size());
-    for (const TankLoad& load : condition.tankLoads) {
+    items.reserve(condition.tankLoads().size() + condition.fixedWeights().size());
+    for (const TankLoad& load : condition.tankLoads()) {
         items.push_back(resolveTank(load, compartments));
     }
-    items.insert(items.end(), condition.fixedWeights.begin(), condition.fixedWeights.end());
+    const std::vector<WeightItem>& fixedWeights = condition.fixedWeights();
+    items.insert(items.end(), fixedWeights.begin(), fixedWeights.end());
     return items;
 }
 

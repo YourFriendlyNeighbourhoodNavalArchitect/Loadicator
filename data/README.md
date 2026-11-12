@@ -53,7 +53,7 @@ A compartment is named by its identifier in the documents of the vessel, with th
 
 ## Loading Conditions
 
-A loading condition is a CSV file with one row for each item on board. Its columns are addressed by name, and only `kind`, `id` and the columns that its rows use need to be present.
+A loading condition is a CSV file with one row for each item on board. Its columns are addressed by name, and only `kind`, `id` and the columns that its rows use need to be present. A column that is not one of those below, or that is named twice, is an error, and so is a value in a column that a row of its kind does not use.
 
 ```csv
 kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm
@@ -64,6 +64,6 @@ weight,Lightweight,24641.9,,,,132.01,0.00,13.67,0
 weight,CREW&ST,200,,,,39.10,0.00,30.00,0
 ```
 
-- `name`: Name of the loading condition, given in the `id` column. Without this row, the condition is named after its file.
-- `tank`: Contents of a compartment that has a capacity table. The row gives either `mass` or `fillPercent`, together with `density` and `phase`. A `liquid` has a free surface and a `solid` has none. The centre and the free-surface moment follow from the capacity table.
+- `name`: Name of the loading condition, given in the `id` column. Without this row, the condition is named after its file. A condition has at most one such row.
+- `tank`: Contents of a compartment that has a capacity table. The row gives either `mass` or `fillPercent`, together with `density` and `phase`. A `liquid` has a free surface and a `solid` has none; without a `phase`, the contents are taken to be liquid. The centre and the free-surface moment follow from the capacity table. Each compartment is loaded by one row at most.
 - `weight`: Any other item, given by `mass`, `lcg`, `tcg`, `vcg` and optionally the free-surface moment `fsm`.

@@ -64,7 +64,7 @@ public:
             addWeight(line, std::string(tokens.front().substr(1, tokens.front().size() - 2)));
         } else if (tokens.front() == "Lightweight") {
             const auto values = numbers(line, 4);
-            current->condition.fixedWeights.push_back(
+            current->condition.addFixedWeight(
                 WeightItem{.name = "Lightweight",
                            .mass = Mass{values[0]},
                            .centre = Position{Length{values[1]}, Length{values[2]}, Length{values[3]}},
@@ -100,9 +100,9 @@ private:
         if (colon == std::string_view::npos || !number) {
             throw source.error(line, "cannot read the number and the title of the condition");
         }
-        current = BookCondition{.number = static_cast<int>(*number)};
-        current->condition.name = "COND" + std::string(text::trim(rest.substr(0, colon))) + " " +
-                                  std::string(text::trim(rest.substr(colon + 1)));
+        const std::string name = "COND" + std::string(text::trim(rest.substr(0, colon))) + " " +
+                                 std::string(text::trim(rest.substr(colon + 1)));
+        current = BookCondition{.number = static_cast<int>(*number), .condition = LoadingCondition(name)};
         density.reset();
     }
 
@@ -126,12 +126,14 @@ private:
             throw source.error(line, id + " is not preceded by its contents");
         }
         const double mass = entry(line).front();
-        current->condition.tankLoads.emplace_back(CompartmentId{id}, Mass{mass}, *density, phase);
+        withContext(source.location(line), [&] {
+            current->condition.addTankLoad(TankLoad(CompartmentId{id}, Mass{mass}, *density, phase));
+        });
     }
 
     void addWeight(const SourceLine& line, const std::string& name) {
         const auto values = entry(line);
-        current->condition.fixedWeights.push_back(
+        current->condition.addFixedWeight(
             WeightItem{.name = name,
                        .mass = Mass{values[0]},
                        .centre = Position{Length{values[2]}, Length{values[3]}, Length{values[4]}},
@@ -167,7 +169,8 @@ private:
 
     void finish(const SourceLine& line) {
         if (current->results.size() != floatingPosition.size() + totalWeight.size()) {
-            throw source.error(line, current->condition.name + ": some results of the book were not found");
+            throw source.error(line,
+                               current->condition.name() + ": some results of the book were not found");
         }
         conditions.push_back(std::move(*current));
         current.reset();
