@@ -1,8 +1,8 @@
 #include "verification.h"
 
+#include "loadicator/book/bookResults.h"
 #include "loadicator/calc/loadResolution.h"
 #include "loadicator/calc/massSummary.h"
-#include "loadicator/book/bookResults.h"
 #include "loadicator/util/error.h"
 
 #include <cmath>

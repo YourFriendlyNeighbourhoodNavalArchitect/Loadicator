@@ -1,5 +1,6 @@
-#include "loadicator/calc/analysis.h"
 #include "commandLine.h"
+
+#include "loadicator/calc/analysis.h"
 #include "loadicator/io/dataLoader.h"
 #include "loadicator/report/reportWriter.h"
 #include "loadicator/util/error.h"

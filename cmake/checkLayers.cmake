@@ -1,46 +1,59 @@
-# Checks that the sources of each layer of the library include headers only of their own layer and of the
-# layers that it depends on, and that every file of the library lies in a declared layer.
+# Checks the includes of the library and of the programs against the layers that each of them links, as
+# recorded by CMakeLists.txt in the rules file:
 #
-#   cmake -D SOURCE_ROOT=<src/loadicator> -D LAYER_RULES=<layer>=<layer>,<layer>|... -P checkLayers.cmake
+#   - a header of the library, included as "loadicator/<layer>/..." or <loadicator/<layer>/...>, must belong
+#     to a layer that the including directory may use;
+#   - any other quoted include must name a file beside the including file, so that no relative path can
+#     reach into a layer;
+#   - every file of the library must lie in the directory of a declared layer.
+#
+#   cmake -D RULES=<build>/layerRules.cmake -P checkLayers.cmake
 
 cmake_minimum_required(VERSION 3.20)
 
-string(REPLACE "|" ";" rules "${LAYER_RULES}")
-set(layers "")
-set(violations "")
-foreach(rule IN LISTS rules)
-    string(FIND "${rule}" "=" separator)
-    string(SUBSTRING "${rule}" 0 ${separator} layer)
-    math(EXPR reachableStart "${separator} + 1")
-    string(SUBSTRING "${rule}" ${reachableStart} -1 reachableText)
-    string(REPLACE "," ";" allowed "${reachableText}")
-    list(APPEND allowed ${layer})
-    list(APPEND layers ${layer})
+include("${RULES}")
+set(libraryRoot "${projectRoot}/src/loadicator")
+if(NOT IS_DIRECTORY "${libraryRoot}")
+    message(FATAL_ERROR "the library directory '${libraryRoot}' does not exist")
+endif()
 
-    file(GLOB sources "${SOURCE_ROOT}/${layer}/*")
+set(violations "")
+foreach(directory IN LISTS checkedDirectories)
+    string(MAKE_C_IDENTIFIER "${directory}" key)
+    if(NOT IS_DIRECTORY "${projectRoot}/${directory}")
+        string(APPEND violations "\n  ${directory}: the directory does not exist")
+        continue()
+    endif()
+    file(GLOB_RECURSE sources LIST_DIRECTORIES false "${projectRoot}/${directory}/*")
     foreach(source IN LISTS sources)
-        file(STRINGS "${source}" includes REGEX "^[ \t]*#[ \t]*include[ \t]*\"loadicator/")
+        get_filename_component(sourceDirectory "${source}" DIRECTORY)
+        file(STRINGS "${source}" includes REGEX "^[ \t]*#[ \t]*include")
         foreach(include IN LISTS includes)
-            string(REGEX MATCH "\"loadicator/([^/\"]+)/" ignored "${include}")
-            if(NOT CMAKE_MATCH_1 IN_LIST allowed)
-                string(APPEND violations "\n  ${source}: ${include}")
+            if(include MATCHES "^[ \t]*#[ \t]*include[ \t]*[<\"]loadicator/([^/>\"]*)/")
+                if(NOT CMAKE_MATCH_1 IN_LIST allowed_${key})
+                    string(APPEND violations "\n  ${source}: ${include}")
+                endif()
+            elseif(include MATCHES "^[ \t]*#[ \t]*include[ \t]*\"([^\"]*)\"")
+                if(CMAKE_MATCH_1 MATCHES "[/\\\\]" OR NOT EXISTS "${sourceDirectory}/${CMAKE_MATCH_1}")
+                    string(APPEND violations "\n  ${source}: ${include} is not a file beside it")
+                endif()
             endif()
         endforeach()
     endforeach()
 endforeach()
 
-file(GLOB directories LIST_DIRECTORIES true "${SOURCE_ROOT}/*")
-foreach(directory IN LISTS directories)
-    get_filename_component(name "${directory}" NAME)
-    if(NOT IS_DIRECTORY "${directory}")
-        string(APPEND violations "\n  ${directory}: not inside a layer")
+file(GLOB entries LIST_DIRECTORIES true "${libraryRoot}/*")
+foreach(entry IN LISTS entries)
+    get_filename_component(name "${entry}" NAME)
+    if(NOT IS_DIRECTORY "${entry}")
+        string(APPEND violations "\n  ${entry}: not inside a layer")
     elseif(NOT name IN_LIST layers)
-        string(APPEND violations "\n  ${directory}: not a declared layer")
+        string(APPEND violations "\n  ${entry}: not a declared layer")
     endif()
 endforeach()
 
 if(violations)
     message(FATAL_ERROR "Layering violations:${violations}")
 endif()
-list(LENGTH layers layerCount)
-message(STATUS "${layerCount} layers checked")
+list(LENGTH checkedDirectories directoryCount)
+message(STATUS "Includes of ${directoryCount} directories checked")

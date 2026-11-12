@@ -10,7 +10,7 @@ if ! command -v pdftotext >/dev/null; then
     exit 1
 fi
 
-cmake -S "$repository" -B "$build" -DLOADICATOR_BUILD_EXTRACTOR=ON >/dev/null
+cmake -S "$repository" -B "$build" >/dev/null
 cmake --build "$build" --target dataExtractor bookComparison
 
 pdfText="$(mktemp -d)"
