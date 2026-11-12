@@ -58,26 +58,6 @@ template <typename Function>
     return ranges;
 }
 
-[[nodiscard]] std::vector<TrimRange> intersection(const std::vector<TrimRange>& first,
-                                                  const std::vector<TrimRange>& second) {
-    std::vector<TrimRange> common;
-    auto lhs = first.begin();
-    auto rhs = second.begin();
-    while (lhs != first.end() && rhs != second.end()) {
-        const double lower = std::max(lhs->lower, rhs->lower);
-        const double upper = std::min(lhs->upper, rhs->upper);
-        if (lower <= upper) {
-            common.push_back(TrimRange{lower, upper});
-        }
-        if (lhs->upper < rhs->upper) {
-            ++lhs;
-        } else {
-            ++rhs;
-        }
-    }
-    return common;
-}
-
 }
 
 FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTable& hydrostatics,
@@ -90,11 +70,10 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
 
     // The draught for a trim lies within the tables only where the displacement lies between those of the
     // least and of the greatest tabulated draught at that trim, so the trim is sought only there.
-    const std::vector<TrimRange> floatingTrims = intersection(
-        trimsWhereNotNegative([&](double trim) { return -excessBuoyancy(minimumDraught, trim); },
-                              hydrostatics.tabulatedTrims()),
-        trimsWhereNotNegative([&](double trim) { return excessBuoyancy(maximumDraught, trim); },
-                              hydrostatics.tabulatedTrims()));
+    const auto floats = [&](double trim) {
+        return std::min(-excessBuoyancy(minimumDraught, trim), excessBuoyancy(maximumDraught, trim));
+    };
+    const std::vector<TrimRange> floatingTrims = trimsWhereNotNegative(floats, hydrostatics.tabulatedTrims());
     if (floatingTrims.empty()) {
         throw LoadicatorError(std::format("a displacement of {:.1f} t lies outside the hydrostatic tables at "
                                           "every trim within {} .. {} m",
