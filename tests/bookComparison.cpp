@@ -121,8 +121,8 @@ int run(const std::filesystem::path& dataDirectory) {
                              bookResults.rowCount())
               << "(computed minus book; the test fails when the mean absolute deviation of a metric "
                  "exceeds its limit)\n\n"
-              << std::format("{:<18}{:<5}{:>10}{:>8}{:>10}{:>10}  {:<8}{:>9}\n", "Metric", "Unit",
-                             "Mean abs", "Limit", "Bias", "Worst", "in", "Outliers");
+              << std::format("{:<18}{:<5}{:>10}{:>8}{:>10}{:>10}  {}\n", "Metric", "Unit", "Mean abs",
+                             "Limit", "Bias", "Worst", "in");
     bool passed = true;
     for (std::size_t index = 0; index < metrics.size(); ++index) {
         const Metric& metric = metrics[index];
@@ -130,11 +130,10 @@ int run(const std::filesystem::path& dataDirectory) {
         const double meanAbsolute = metricStatistics.absoluteSum / conditionCount;
         const bool metricPasses = meanAbsolute <= metric.meanLimit;
         passed = passed && metricPasses;
-        std::cout << std::format("{:<18}{:<5}{:>10.4f}{:>8.2f}{:>+10.4f}{:>+10.4f}  {:<8}{:>9}{}\n",
-                                 metric.name, metric.unit, meanAbsolute, metric.meanLimit,
+        std::cout << std::format("{:<18}{:<5}{:>10.4f}{:>8.2f}{:>+10.4f}{:>+10.4f}  {:<8}{}\n", metric.name,
+                                 metric.unit, meanAbsolute, metric.meanLimit,
                                  metricStatistics.sum / conditionCount, metricStatistics.worst,
-                                 metricStatistics.worstCondition, metricStatistics.outliers.size(),
-                                 metricPasses ? "" : "  FAILED");
+                                 metricStatistics.worstCondition, metricPasses ? "" : "  FAILED");
     }
 
     std::cout << std::format(

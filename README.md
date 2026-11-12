@@ -12,7 +12,7 @@ The ship data are taken from the trim and stability book, the hydrostatic tables
 
 ## Repository Structure
 
-- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor. The library is built as one target per layer, and each layer has its own include directory, so that a source can only include the headers of the layers its target links.
+- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor. The library is built as one target per layer, and each layer has its own include directory, so that a source can only include the headers of the layers its target links; the `headers` test compiles every header on its own against its layer. It requires CMake 3.24.
 - `app/main.cpp`: Command-line program, which reads the ship data and a loading condition, and writes the report.
 - `app/commandLine.cpp`: Command-line options.
 - `src/<layer>/`: The library, one directory per layer, with its headers under `include/loadicator/<layer>/`. Each layer depends only on the layers listed before it.

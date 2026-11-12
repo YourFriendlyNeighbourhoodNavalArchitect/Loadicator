@@ -76,7 +76,7 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
     const std::vector<TrimRange> floatingTrims = trimsWhereNotNegative(floats, hydrostatics.tabulatedTrims());
     if (floatingTrims.empty()) {
         throw LoadicatorError(std::format("a displacement of {:.1f} t lies outside the hydrostatic tables at "
-                                          "every trim within {} .. {} m",
+                                          "every tabulated trim from {} to {} m",
                                           mass.displacement.value(), hydrostatics.minimumTrim().value(),
                                           hydrostatics.maximumTrim().value()));
     }
@@ -115,9 +115,7 @@ FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTabl
                                 .lcf = hydrostatics.lcfAt(draught),
                                 .kmt = hydrostatics.kmtAt(draught, trim)};
     }
-    throw LoadicatorError(std::format("no trim equilibrium within the hydrostatic tables ({} .. {} m)",
-                                      hydrostatics.minimumTrim().value(),
-                                      hydrostatics.maximumTrim().value()));
+    throw LoadicatorError("no trim equilibrium at the trims where the hydrostatic tables float the ship");
 }
 
 }

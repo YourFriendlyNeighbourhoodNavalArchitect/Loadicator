@@ -3,7 +3,6 @@
 #include "loadicator/util/error.h"
 
 #include <cstddef>
-#include <iterator>
 #include <string>
 #include <utility>
 

@@ -12,7 +12,7 @@ namespace loadicator {
 
 namespace {
 
-// Masses are rounded to 0.1 t, which can place a full small tank slightly above its capacity
+// The masses of the book can place a full tank slightly above its tabulated capacity, by up to 0.13 %
 // (R4.3: 26.5 t at 0.85 t/m3 is 31.18 m3 in 31.14 m3).
 constexpr double capacityTolerance = 0.005;
 

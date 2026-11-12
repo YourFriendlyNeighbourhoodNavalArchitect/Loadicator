@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 project(Loadicator LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -16,9 +16,14 @@ endif()
 
 # The library is built in layers, one target loadicator::<layer> per directory src/<layer>, which links the
 # layers it depends on. Each layer has an include directory of its own that reaches only the targets linking
-# it, so that the compiler rejects an include of a layer that a target does not link.
+# it, so that the compiler rejects an include of a layer that a target does not link. The headers test
+# compiles every header on its own against its layer, which covers the headers that no source compiles.
+set(CMAKE_VERIFY_INTERFACE_HEADER_SETS ON)
 function(add_loadicator_layer layer)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS")
+    if(arg_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "add_loadicator_layer(${layer}): unexpected '${arg_UNPARSED_ARGUMENTS}'")
+    endif()
     string(SUBSTRING ${layer} 0 1 initial)
     string(TOUPPER ${initial} initial)
     string(SUBSTRING ${layer} 1 -1 rest)
@@ -32,7 +37,8 @@ function(add_loadicator_layer layer)
         add_library(${target} INTERFACE)
         set(scope INTERFACE)
     endif()
-    target_include_directories(${target} ${scope} src/${layer}/include)
+    file(GLOB_RECURSE headers CONFIGURE_DEPENDS src/${layer}/include/*.h)
+    target_sources(${target} ${scope} FILE_SET HEADERS BASE_DIRS src/${layer}/include FILES ${headers})
     list(TRANSFORM arg_DEPENDS PREPEND loadicator::)
     target_link_libraries(${target} ${scope} ${arg_DEPENDS})
     add_library(loadicator::${layer} ALIAS ${target})
@@ -79,3 +85,5 @@ target_link_libraries(bookComparison
 
 enable_testing()
 add_test(NAME bookComparison COMMAND bookComparison ${PROJECT_SOURCE_DIR}/data)
+add_test(NAME headers
+    COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target all_verify_interface_header_sets)
