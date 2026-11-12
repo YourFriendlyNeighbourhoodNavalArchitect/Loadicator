@@ -51,9 +51,14 @@ private:
 
     numeric::Abscissa gridDraughts;
     numeric::Abscissa gridTrims;
+    // One spline over draught per tabulated trim.
     Surface displacement;
     Surface lcb;
     Surface kmt;
+    // A natural cubic spline is linear in its ordinates, so the spline over trim through the values at one
+    // draught is the sum of those values, each weighted by the spline that is one at its trim and zero at the
+    // others. These weights depend on the trim alone, which spares a spline over trim for every lookup.
+    std::vector<numeric::NaturalCubicSpline> trimBasis;
 };
 
 }

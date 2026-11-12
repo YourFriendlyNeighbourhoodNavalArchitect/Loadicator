@@ -59,6 +59,12 @@ HydrostaticTable::HydrostaticTable(const std::vector<EvenKeelHydrostatics>& even
         lcb.emplace_back(gridDraughts, magnitudes(alongDraught, &TrimGridPoint::lcb));
         kmt.emplace_back(gridDraughts, magnitudes(alongDraught, &TrimGridPoint::kmt));
     }
+
+    for (std::size_t node = 0; node < gridTrims.size(); ++node) {
+        std::vector<double> unitAtNode(gridTrims.size(), 0.0);
+        unitAtNode[node] = 1.0;
+        trimBasis.emplace_back(gridTrims, std::move(unitAtNode));
+    }
 }
 
 double HydrostaticTable::valueAt(const Surface& surface, Length draught, Length trim) const {
@@ -71,12 +77,11 @@ double HydrostaticTable::valueAt(const Surface& surface, Length draught, Length 
         throw LoadicatorError(std::format("a trim of {:.3f} m is outside the hydrostatic tables ({} .. {} m)",
                                           trim.value(), minimumTrim().value(), maximumTrim().value()));
     }
-    std::vector<double> alongTrim;
-    alongTrim.reserve(surface.size());
-    for (const numeric::NaturalCubicSpline& alongDraught : surface) {
-        alongTrim.push_back(alongDraught.valueAt(draught.value()));
+    double value = 0.0;
+    for (std::size_t node = 0; node < surface.size(); ++node) {
+        value += trimBasis[node].valueAt(trim.value()) * surface[node].valueAt(draught.value());
     }
-    return numeric::NaturalCubicSpline(gridTrims, std::move(alongTrim)).valueAt(trim.value());
+    return value;
 }
 
 Mass HydrostaticTable::displacementAt(Length draught, Length trim) const {
