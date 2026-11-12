@@ -5,8 +5,6 @@
 #include "loadicator/util/error.h"
 
 #include <algorithm>
-#include <functional>
-#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -111,23 +109,13 @@ struct ConditionColumns {
     const CsvDocument document = CsvDocument::readFile(file, schema::ship::columns);
     const CsvColumn parameter = document.column(schema::ship::parameter);
     const CsvColumn value = document.column(schema::ship::value);
-    std::map<std::string, Length, std::less<>> lengths;
-    for (const CsvRow row : document.rows()) {
-        const std::string name{row.text(parameter)};
-        if (std::find(schema::ship::parameters.begin(), schema::ship::parameters.end(), name) ==
-            schema::ship::parameters.end()) {
-            throw LoadicatorError(row.location() + ": unknown parameter '" + name + "'");
-        }
-        if (!lengths.emplace(name, Length{row.number(value)}).second) {
-            throw LoadicatorError(row.location() + ": parameter '" + name + "' is given twice");
-        }
-    }
     const auto lengthOf = [&](std::string_view name) {
-        const auto found = lengths.find(name);
-        if (found == lengths.end()) {
-            throw LoadicatorError(document.sourceName() + ": missing parameter '" + std::string(name) + "'");
+        for (const CsvRow row : document.rows()) {
+            if (row.text(parameter) == name) {
+                return Length{row.number(value)};
+            }
         }
-        return found->second;
+        throw LoadicatorError(document.sourceName() + ": missing parameter '" + std::string(name) + "'");
     };
     const Length lengthBetweenPerpendiculars = lengthOf(schema::ship::lengthBetweenPerpendiculars);
     const Length referencePointX = lengthOf(schema::ship::referencePointX);

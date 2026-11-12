@@ -26,7 +26,6 @@ inline constexpr std::string_view value = "value";
 inline constexpr std::string_view lengthBetweenPerpendiculars = "lengthBetweenPerpendiculars";
 inline constexpr std::string_view referencePointX = "referencePointX";
 inline constexpr std::array columns{parameter, value};
-inline constexpr std::array parameters{lengthBetweenPerpendiculars, referencePointX};
 }
 
 namespace evenKeel {
