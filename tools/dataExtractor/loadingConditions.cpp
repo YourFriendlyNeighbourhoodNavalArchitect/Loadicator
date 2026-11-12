@@ -1,6 +1,7 @@
 #include "loadingConditions.h"
 
 #include "loadicator/book/bookResults.h"
+#include "loadicator/util/error.h"
 #include "loadicator/util/text.h"
 
 #include <algorithm>

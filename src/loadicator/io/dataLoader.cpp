@@ -5,8 +5,11 @@
 #include "loadicator/util/error.h"
 
 #include <algorithm>
+#include <array>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -41,12 +44,26 @@ struct ConditionColumns {
           fsm(document.optionalColumn(schema::condition::fsm)) {}
 
     CsvColumn kind, id, mass, fillPercent, density, phase, lcg, tcg, vcg, fsm;
+
+    [[nodiscard]] std::array<const CsvColumn*, schema::condition::columns.size()> all() const {
+        return {&kind, &id, &mass, &fillPercent, &density, &phase, &lcg, &tcg, &vcg, &fsm};
+    }
 };
 
+// Fails if the row has a value in a column that rows of its kind do not use.
+void requireOnly(const CsvRow& row, const ConditionColumns& columns, std::span<const std::string_view> used,
+                 std::string_view kind) {
+    for (const CsvColumn* column : columns.all()) {
+        const bool isUsed = std::find(used.begin(), used.end(), column->name()) != used.end();
+        if (!isUsed && !row.text(*column).empty()) {
+            throw LoadicatorError(row.location() + ": a row of kind '" + std::string(kind) +
+                                  "' takes no value in column '" + std::string(column->name()) + "'");
+        }
+    }
+}
+
 [[nodiscard]] TankLoad tankLoadOf(const CsvRow& row, const ConditionColumns& columns) {
-    row.requireOnly(
-        {columns.kind, columns.id, columns.mass, columns.fillPercent, columns.density, columns.phase},
-        schema::condition::tank);
+    requireOnly(row, columns, schema::condition::tankColumns, schema::condition::tank);
     const auto mass = row.optionalNumber(columns.mass);
     const auto fillPercent = row.optionalNumber(columns.fillPercent);
     if (mass.has_value() == fillPercent.has_value()) {
@@ -61,9 +78,7 @@ struct ConditionColumns {
 }
 
 [[nodiscard]] WeightItem weightOf(const CsvRow& row, const ConditionColumns& columns) {
-    row.requireOnly(
-        {columns.kind, columns.id, columns.mass, columns.lcg, columns.tcg, columns.vcg, columns.fsm},
-        schema::condition::weight);
+    requireOnly(row, columns, schema::condition::weightColumns, schema::condition::weight);
     return WeightItem{.name = std::string(row.text(columns.id)),
                       .mass = Mass{row.number(columns.mass)},
                       .centre = Position{Length{row.number(columns.lcg)}, Length{row.number(columns.tcg)},
@@ -71,22 +86,26 @@ struct ConditionColumns {
                       .freeSurfaceMoment = Moment{row.optionalNumber(columns.fsm).value_or(0.0)}};
 }
 
-// The name given by the row of kind 'name', or else the name of the file.
-[[nodiscard]] std::string conditionName(const CsvDocument& document, const ConditionColumns& columns,
-                                        const fs::path& file) {
+// A condition named by its row of kind 'name', or else after its file.
+[[nodiscard]] LoadingCondition namedCondition(const CsvDocument& document, const ConditionColumns& columns,
+                                              const fs::path& file) {
     std::optional<CsvRow> nameRow;
     for (const CsvRow row : document.rows()) {
         if (row.text(columns.kind) != schema::condition::name) {
             continue;
         }
-        row.requireOnly({columns.kind, columns.id}, schema::condition::name);
+        requireOnly(row, columns, schema::condition::nameColumns, schema::condition::name);
         if (nameRow) {
             throw LoadicatorError(row.location() + ": the condition is already named at " +
                                   nameRow->location());
         }
         nameRow = row;
     }
-    return nameRow ? std::string(nameRow->text(columns.id)) : file.stem().string();
+    if (!nameRow) {
+        return LoadingCondition(file.stem().string());
+    }
+    return withContext(nameRow->location(),
+                       [&] { return LoadingCondition(std::string(nameRow->text(columns.id))); });
 }
 
 [[nodiscard]] ShipParticulars loadShipParticulars(const fs::path& file) {
@@ -188,7 +207,7 @@ LoadingCondition loadLoadingCondition(const fs::path& file) {
     const CsvDocument document = CsvDocument::readFile(file, schema::condition::columns);
     const ConditionColumns columns(document);
 
-    LoadingCondition condition(conditionName(document, columns, file));
+    LoadingCondition condition = namedCondition(document, columns, file);
     for (const CsvRow row : document.rows()) {
         const std::string_view kind = row.text(columns.kind);
         if (kind == schema::condition::tank) {
@@ -206,4 +225,5 @@ LoadingCondition loadLoadingCondition(const fs::path& file) {
     }
     return condition;
 }
+
 }

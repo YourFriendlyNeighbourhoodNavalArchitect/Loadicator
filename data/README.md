@@ -20,6 +20,8 @@ The comparison lists, for each key metric, the mean deviation from the book over
 
 ## Output Files
 
+The program reads every one of these files by the names of its columns, in any order. A column that the file does not define, or that is named twice, is an error. The files may begin with a UTF-8 byte order mark.
+
 - `ship.csv`: Length between perpendiculars and longitudinal position of the reference point of the hydrostatic tables.
 - `hydrostatics/evenKeel.csv`: Centre of flotation `lcf` and vertical centre of buoyancy `vcb` at each `draught` on even keel.
 - `hydrostatics/trimGrid.csv`: Values of `displacement`, `lcb` and `kmt` at each `draught` and `trim`, for trims from -2 m to 6 m.
@@ -53,7 +55,7 @@ A compartment is named by its identifier in the documents of the vessel, with th
 
 ## Loading Conditions
 
-A loading condition is a CSV file with one row for each item on board. Its columns are addressed by name, and only `kind`, `id` and the columns that its rows use need to be present. A column that is not one of those below, or that is named twice, is an error, and so is a value in a column that a row of its kind does not use.
+A loading condition is a CSV file with one row for each item on board. Its columns are addressed by name, and only `kind`, `id` and the columns that its rows use need to be present. The columns are those of the example below, and a value in a column that a row of its kind does not use is an error.
 
 ```csv
 kind,id,mass,fillPercent,density,phase,lcg,tcg,vcg,fsm

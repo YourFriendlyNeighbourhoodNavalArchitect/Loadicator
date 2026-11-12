@@ -30,7 +30,11 @@ TankLoad::TankLoad(CompartmentId tank, TankAmount contents, Density contentsDens
     }
 }
 
-LoadingCondition::LoadingCondition(std::string name) : conditionName(std::move(name)) {}
+LoadingCondition::LoadingCondition(std::string name) : conditionName(std::move(name)) {
+    if (conditionName.empty()) {
+        throw LoadicatorError("a loading condition needs a name");
+    }
+}
 
 void LoadingCondition::addTankLoad(TankLoad load) {
     const auto sameCompartment = [&](const TankLoad& other) { return other.compartment == load.compartment; };

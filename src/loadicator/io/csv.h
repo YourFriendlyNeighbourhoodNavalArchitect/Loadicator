@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <filesystem>
-#include <initializer_list>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -33,9 +32,6 @@ public:
     [[nodiscard]] std::string_view text(const CsvColumn& column) const;
     [[nodiscard]] double number(const CsvColumn& column) const;
     [[nodiscard]] std::optional<double> optionalNumber(const CsvColumn& column) const;
-
-    // Fails if the row has a value in any column but those that a row of its kind uses.
-    void requireOnly(std::initializer_list<CsvColumn> usedColumns, std::string_view kind) const;
 
     [[nodiscard]] std::string location() const;
 
@@ -72,7 +68,7 @@ private:
     CsvDocument(std::string_view content, std::string sourceName,
                 std::span<const std::string_view> knownColumns);
 
-    void checkHeader(std::span<const std::string_view> knownColumns) const;
+    void checkHeader(std::span<const std::string_view> knownColumns, std::size_t lineNumber) const;
 
     std::string source;
     std::vector<std::string> header;

@@ -65,6 +65,10 @@ inline constexpr std::string_view tcg = "tcg";
 inline constexpr std::string_view vcg = "vcg";
 inline constexpr std::string_view fsm = "fsm";
 inline constexpr std::array columns{kind, id, mass, fillPercent, density, phase, lcg, tcg, vcg, fsm};
+// The columns that a row of each kind uses; a value in any other column is an error.
+inline constexpr std::array tankColumns{kind, id, mass, fillPercent, density, phase};
+inline constexpr std::array weightColumns{kind, id, mass, lcg, tcg, vcg, fsm};
+inline constexpr std::array nameColumns{kind, id};
 
 inline constexpr std::string_view tank = "tank";
 inline constexpr std::string_view weight = "weight";
