@@ -4,6 +4,7 @@
 #include "loadicator/io/dataLoader.h"
 #include "loadicator/io/schema.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -28,37 +29,40 @@ struct Metric {
     std::string_view name;
     std::string_view unit;
     std::string_view bookColumn;
+    // The decimals to which the book prints the metric.
+    int decimals;
     // The test fails when the mean absolute deviation over the conditions of the book exceeds this.
     double meanLimit;
-    // A deviation beyond this is listed as an outlier, for information only.
-    double outlierLimit;
     MetricValue (*computed)(const Analysis&);
 };
 
+// A deviation beyond this multiple of the mean limit of its metric is listed as an outlier, for information.
+constexpr double outlierFactor = 3.0;
+
 constexpr std::array metrics{
-    Metric{"Displacement", "t", book::column::displacement, 0.5, 1.5,
+    Metric{"Displacement", "t", book::column::displacement, 1, 0.5,
            [](const Analysis& a) -> MetricValue { return a.mass.displacement.value(); }},
-    Metric{"LCG", "m", book::column::lcg, 0.02, 0.10,
+    Metric{"LCG", "m", book::column::lcg, 2, 0.02,
            [](const Analysis& a) -> MetricValue { return a.mass.centreOfGravity.x.value(); }},
-    Metric{"TCG", "m", book::column::tcg, 0.05, 0.10,
+    Metric{"TCG", "m", book::column::tcg, 2, 0.05,
            [](const Analysis& a) -> MetricValue { return a.mass.centreOfGravity.y.value(); }},
-    Metric{"KG", "m", book::column::kg, 0.01, 0.02,
+    Metric{"KG", "m", book::column::kg, 2, 0.01,
            [](const Analysis& a) -> MetricValue { return a.mass.centreOfGravity.z.value(); }},
-    Metric{"Draught midships", "m", book::column::draught, 0.02, 0.05,
+    Metric{"Draught midships", "m", book::column::draught, 3, 0.02,
            [](const Analysis& a) -> MetricValue { return a.floatingPosition.draughtMidships.value(); }},
-    Metric{"Draught aft", "m", book::column::draughtAft, 0.02, 0.05,
+    Metric{"Draught aft", "m", book::column::draughtAft, 3, 0.02,
            [](const Analysis& a) -> MetricValue { return a.floatingPosition.draughtAft.value(); }},
-    Metric{"Draught forward", "m", book::column::draughtForward, 0.04, 0.05,
+    Metric{"Draught forward", "m", book::column::draughtForward, 3, 0.04,
            [](const Analysis& a) -> MetricValue { return a.floatingPosition.draughtForward.value(); }},
-    Metric{"Trim", "m", book::column::trim, 0.05, 0.10,
+    Metric{"Trim", "m", book::column::trim, 3, 0.05,
            [](const Analysis& a) -> MetricValue { return a.floatingPosition.trim.value(); }},
-    Metric{"KMT", "m", book::column::kmt, 0.05, 0.10,
+    Metric{"KMT", "m", book::column::kmt, 2, 0.05,
            [](const Analysis& a) -> MetricValue { return a.floatingPosition.kmt.value(); }},
-    Metric{"GM solid", "m", book::column::gmSolid, 0.05, 0.10,
+    Metric{"GM solid", "m", book::column::gmSolid, 2, 0.05,
            [](const Analysis& a) -> MetricValue { return a.stability.gmSolid.value(); }},
-    Metric{"GM fluid", "m", book::column::gm, 0.05, 0.10,
+    Metric{"GM fluid", "m", book::column::gm, 2, 0.05,
            [](const Analysis& a) -> MetricValue { return a.stability.gmFluid.value(); }},
-    Metric{"Heel", "deg", book::column::heel, 0.4, 0.5,
+    Metric{"Heel", "deg", book::column::heel, 1, 0.4,
            [](const Analysis& a) -> MetricValue {
                return a.stability.heel ? MetricValue{a.stability.heel->degrees()} : std::nullopt;
            }},
@@ -125,15 +129,16 @@ int run(const std::filesystem::path& dataDirectory) {
         for (std::size_t index = 0; index < metrics.size(); ++index) {
             const Metric& metric = metrics[index];
             statistics[index].add(name, metric.computed(analysis), expected.number(columns[index]),
-                                  metric.outlierLimit);
+                                  outlierFactor * metric.meanLimit);
         }
     }
 
     std::cout << std::format("Deviation from the trim and stability book over {} loading conditions\n",
                              bookResults.rowCount())
-              << "(computed minus book; the test fails when a mean absolute deviation exceeds its limit)\n\n"
+              << "(computed minus book; the test fails when the mean absolute deviation of a metric "
+                 "exceeds its limit\nor does not cover every condition)\n\n"
               << std::format("{:<18}{:<5}{:>10}{:>8}{:>10}{:>10}  {:<8}{:>9}\n", "Metric", "Unit",
-                             "Mean abs", "Limit", "Mean", "Worst", "in", "Outliers");
+                             "Mean abs", "Limit", "Bias", "Worst", "in", "Outliers");
     bool passed = true;
     for (std::size_t index = 0; index < metrics.size(); ++index) {
         const Metric& metric = metrics[index];
@@ -143,27 +148,34 @@ int run(const std::filesystem::path& dataDirectory) {
         if (metricStatistics.count == 0) {
             std::cout << std::format("{:<18}{:<5}{:>10}{:>8.2f}  FAILED\n", metric.name, metric.unit, "-",
                                      metric.meanLimit);
-            continue;
+        } else {
+            std::cout << std::format("{:<18}{:<5}{:>10.4f}{:>8.2f}{:>+10.4f}{:>+10.4f}  {:<8}{:>9}{}\n",
+                                     metric.name, metric.unit, metricStatistics.meanAbsolute(),
+                                     metric.meanLimit, metricStatistics.mean(), metricStatistics.worst,
+                                     metricStatistics.worstCondition, metricStatistics.outliers.size(),
+                                     metricPasses ? "" : "  FAILED");
         }
-        std::cout << std::format("{:<18}{:<5}{:>10.4f}{:>8.2f}{:>+10.4f}{:>+10.4f}  {:<8}{:>9}{}\n",
-                                 metric.name, metric.unit, metricStatistics.meanAbsolute(), metric.meanLimit,
-                                 metricStatistics.mean(), metricStatistics.worst,
-                                 metricStatistics.worstCondition, metricStatistics.outliers.size(),
-                                 metricPasses ? "" : "  FAILED");
         for (const std::string& name : metricStatistics.notComputed) {
             std::cout << std::format("  not computed for {}, so the mean does not cover every condition\n",
                                      name);
         }
     }
 
-    std::cout << "\nOutliers, for information: deviations beyond the outlier limit of their metric\n\n"
-              << std::format("{:<10}{:<18}{:>12}{:>12}{:>12}{:>8}\n", "Condition", "Metric", "Computed",
-                             "Book", "Deviation", "Limit");
+    const bool anyOutlier = std::any_of(statistics.begin(), statistics.end(),
+                                        [](const Statistics& each) { return !each.outliers.empty(); });
+    if (anyOutlier) {
+        std::cout << std::format("\nOutliers, for information: deviations beyond {} times the limit of their "
+                                 "metric\n\n",
+                                 outlierFactor)
+                  << std::format("{:<10}{:<18}{:>12}{:>12}{:>12}\n", "Condition", "Metric", "Computed",
+                                 "Book", "Deviation");
+    }
     for (std::size_t index = 0; index < metrics.size(); ++index) {
+        const Metric& metric = metrics[index];
         for (const Outlier& outlier : statistics[index].outliers) {
-            std::cout << std::format("{:<10}{:<18}{:>12.3f}{:>12.3f}{:>+12.3f}{:>8.2f}\n",
-                                     outlier.condition, metrics[index].name, outlier.computed, outlier.book,
-                                     outlier.computed - outlier.book, metrics[index].outlierLimit);
+            std::cout << std::format("{:<10}{:<18}{:>12.{}f}{:>12.{}f}{:>+12.{}f}\n", outlier.condition,
+                                     metric.name, outlier.computed, metric.decimals, outlier.book,
+                                     metric.decimals, outlier.computed - outlier.book, metric.decimals);
         }
     }
 
