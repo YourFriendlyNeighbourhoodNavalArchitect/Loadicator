@@ -12,13 +12,12 @@ The ship data are taken from the trim and stability book, the hydrostatic tables
 
 ## Repository Structure
 
-- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor. The library is built as one target per layer, and each program links only the layers it uses.
-- `cmake/checkLayers.cmake`: Test that the library and each program include only headers of the layers they link, by paths without `.` or `..`, and that every file of the library lies in a declared layer. Every target must be declared through the layer and program functions of `CMakeLists.txt`, so that none escapes the test.
+- `CMakeLists.txt`: Build configuration of the program, the comparison with the book and, on request, the data extractor. The library is built as one target per layer, and each layer has its own include directory, so that a source can only include the headers of the layers its target links.
 - `app/main.cpp`: Command-line program, which reads the ship data and a loading condition, and writes the report.
 - `app/commandLine.cpp`: Command-line options.
-- `src/loadicator/`: The library, in layers. Each layer depends only on the layers listed before it.
+- `src/<layer>/`: The library, one directory per layer, with its headers under `include/loadicator/<layer>/`. Each layer depends only on the layers listed before it.
   - `util/`: Dimension-checked physical quantities (mass, length, volume, density and moment) and angles, the error type and text parsing.
-  - `numeric/`: Bracketing interpolation, natural cubic splines and root finding.
+  - `numeric/`: Bracketing interpolation, natural cubic splines over one and two variables, and root finding.
   - `domain/`: Ship particulars, hydrostatic tables, compartment capacity tables and loading conditions.
   - `calc/`: Resolution of a loading condition into weights, weight summary, equilibrium solver and initial stability.
   - `io/`: CSV reading, the names of the data files and their columns, and loaders for the ship data and the loading conditions. Depends on `domain/`.
