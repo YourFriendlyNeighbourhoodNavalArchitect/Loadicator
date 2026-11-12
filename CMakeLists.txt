@@ -19,6 +19,26 @@ endif()
 # include directory, so the build alone cannot stop a source from including a header of a layer that it does
 # not link: the layering test checks the includes of each layer and of each program against what it links.
 
+# Fails on arguments that the calling function does not take, so that a misspelt keyword cannot silently drop
+# a link or a source.
+macro(loadicator_check_arguments function)
+    if(DEFINED arg_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "${function}: unexpected arguments '${arg_UNPARSED_ARGUMENTS}'")
+    endif()
+    if(DEFINED arg_KEYWORDS_MISSING_VALUES)
+        message(FATAL_ERROR "${function}: no value for '${arg_KEYWORDS_MISSING_VALUES}'")
+    endif()
+endmacro()
+
+# Paths are given within the directory of their target, so that no target can take the sources of another.
+function(loadicator_check_relative_paths function)
+    foreach(path IN LISTS ARGN)
+        if(IS_ABSOLUTE "${path}" OR path MATCHES "(^|/)\\.\\.?(/|$)")
+            message(FATAL_ERROR "${function}: '${path}' is not a path within the directory of the target")
+        endif()
+    endforeach()
+endfunction()
+
 # The layers that a layer or a program may include from: those it links and all the layers below them.
 function(loadicator_reachable_layers output)
     set(reachable "")
@@ -34,24 +54,39 @@ function(loadicator_reachable_layers output)
     set(${output} "${reachable}" PARENT_SCOPE)
 endfunction()
 
-function(loadicator_check_includes directory)
-    set_property(GLOBAL APPEND PROPERTY loadicatorCheckedDirectories ${directory})
-    string(MAKE_C_IDENTIFIER "${directory}" key)
-    set_property(GLOBAL PROPERTY loadicatorAllowed_${key} ${ARGN})
+# Records the layers that the files below a directory may include from. Each target has a directory of its
+# own, so that the rules of one target cannot cover the files of another.
+function(loadicator_check_includes target directory)
+    get_property(checked GLOBAL PROPERTY loadicatorCheckedDirectories)
+    foreach(other IN LISTS checked)
+        string(FIND "${directory}/" "${other}/" directoryInOther)
+        string(FIND "${other}/" "${directory}/" otherInDirectory)
+        if(directoryInOther EQUAL 0 OR otherInDirectory EQUAL 0)
+            message(FATAL_ERROR
+                    "${target}: the directory '${directory}' overlaps '${other}' of another target")
+        endif()
+    endforeach()
+    list(LENGTH checked index)
+    set_property(GLOBAL APPEND PROPERTY loadicatorCheckedDirectories "${directory}")
+    set_property(GLOBAL PROPERTY loadicatorAllowed_${index} "${ARGN}")
+    set_property(GLOBAL APPEND PROPERTY loadicatorTargets ${target})
 endfunction()
 
 # A layer without SOURCES consists of headers only. SOURCES are relative to the directory of the layer.
 function(add_loadicator_layer layer)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS")
+    loadicator_check_arguments(add_loadicator_layer)
+    loadicator_check_relative_paths(add_loadicator_layer ${arg_SOURCES})
     loadicator_reachable_layers(below ${arg_DEPENDS})
-    set_property(GLOBAL PROPERTY loadicatorReachable_${layer} ${below})
-    set_property(GLOBAL APPEND PROPERTY loadicatorLayers ${layer})
-    loadicator_check_includes(src/loadicator/${layer} ${layer} ${below})
 
     string(SUBSTRING ${layer} 0 1 initial)
     string(TOUPPER ${initial} initial)
     string(SUBSTRING ${layer} 1 -1 rest)
     set(target loadicator${initial}${rest})
+    set_property(GLOBAL PROPERTY loadicatorReachable_${layer} ${below})
+    set_property(GLOBAL APPEND PROPERTY loadicatorLayers ${layer})
+    loadicator_check_includes(${target} src/loadicator/${layer} ${layer} ${below})
+
     list(TRANSFORM arg_DEPENDS PREPEND loadicator::)
     if(arg_SOURCES)
         list(TRANSFORM arg_SOURCES PREPEND src/loadicator/${layer}/)
@@ -69,10 +104,15 @@ endfunction()
 # A program built from the sources of one directory, relative to which SOURCES are given, and linking LAYERS.
 function(add_loadicator_executable name)
     cmake_parse_arguments(PARSE_ARGV 1 arg "EXCLUDE_FROM_ALL" "DIRECTORY" "SOURCES;LAYERS")
+    loadicator_check_arguments(add_loadicator_executable)
+    if(NOT DEFINED arg_DIRECTORY)
+        message(FATAL_ERROR "add_loadicator_executable: ${name} needs a DIRECTORY")
+    endif()
+    loadicator_check_relative_paths(add_loadicator_executable "${arg_DIRECTORY}" ${arg_SOURCES})
     loadicator_reachable_layers(reachable ${arg_LAYERS})
-    loadicator_check_includes(${arg_DIRECTORY} ${reachable})
+    loadicator_check_includes(${name} "${arg_DIRECTORY}" ${reachable})
 
-    list(TRANSFORM arg_SOURCES PREPEND ${arg_DIRECTORY}/)
+    list(TRANSFORM arg_SOURCES PREPEND "${arg_DIRECTORY}/")
     list(TRANSFORM arg_LAYERS PREPEND loadicator::)
     if(arg_EXCLUDE_FROM_ALL)
         add_executable(${name} EXCLUDE_FROM_ALL ${arg_SOURCES})
@@ -119,20 +159,38 @@ add_loadicator_executable(bookComparison
     SOURCES bookComparison.cpp
     LAYERS io calc book)
 
-get_property(layers GLOBAL PROPERTY loadicatorLayers)
-get_property(checkedDirectories GLOBAL PROPERTY loadicatorCheckedDirectories)
-set(layerRules "set(projectRoot \"${PROJECT_SOURCE_DIR}\")\n")
-string(APPEND layerRules "set(layers ${layers})\n")
-string(APPEND layerRules "set(checkedDirectories ${checkedDirectories})\n")
-foreach(directory IN LISTS checkedDirectories)
-    string(MAKE_C_IDENTIFIER "${directory}" key)
-    get_property(allowed GLOBAL PROPERTY loadicatorAllowed_${key})
-    string(APPEND layerRules "set(allowed_${key} ${allowed})\n")
-endforeach()
-file(WRITE ${PROJECT_BINARY_DIR}/layerRules.cmake "${layerRules}")
+# Once every target is declared, every target but the warning options must have its includes checked, and
+# the rules of the layering test are written for it.
+function(loadicator_write_layer_rules)
+    get_property(targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    get_property(checkedTargets GLOBAL PROPERTY loadicatorTargets)
+    foreach(target IN LISTS targets)
+        if(NOT target STREQUAL "loadicatorOptions" AND NOT target IN_LIST checkedTargets)
+            message(FATAL_ERROR
+                    "${target} is not declared by add_loadicator_layer or add_loadicator_executable")
+        endif()
+    endforeach()
+
+    # Bracket arguments keep every character of the paths, and the semicolons that separate the lists.
+    get_property(layers GLOBAL PROPERTY loadicatorLayers)
+    get_property(checkedDirectories GLOBAL PROPERTY loadicatorCheckedDirectories)
+    set(layerRules "set(layers [==[${layers}]==])\n")
+    string(APPEND layerRules "set(checkedDirectories [==[${checkedDirectories}]==])\n")
+    list(LENGTH checkedDirectories directoryCount)
+    math(EXPR lastIndex "${directoryCount} - 1")
+    foreach(index RANGE ${lastIndex})
+        get_property(allowed GLOBAL PROPERTY loadicatorAllowed_${index})
+        string(APPEND layerRules "set(allowed_${index} [==[${allowed}]==])\n")
+    endforeach()
+    file(WRITE ${PROJECT_BINARY_DIR}/layerRules.cmake "${layerRules}")
+endfunction()
+cmake_language(DEFER CALL loadicator_write_layer_rules)
 
 enable_testing()
 add_test(NAME bookComparison COMMAND bookComparison ${PROJECT_SOURCE_DIR}/data)
+# The check globs paths relative to the project, whose own path may hold characters that a glob reads as
+# a pattern.
 add_test(NAME layering
     COMMAND ${CMAKE_COMMAND} -D RULES=${PROJECT_BINARY_DIR}/layerRules.cmake
-            -P ${PROJECT_SOURCE_DIR}/cmake/checkLayers.cmake)
+            -P ${PROJECT_SOURCE_DIR}/cmake/checkLayers.cmake
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

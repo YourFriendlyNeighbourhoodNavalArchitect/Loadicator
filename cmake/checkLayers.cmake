@@ -1,51 +1,65 @@
 # Checks the includes of the library and of the programs against the layers that each of them links, as
-# recorded by CMakeLists.txt in the rules file:
+# recorded by CMakeLists.txt in the rules file. Run from the root of the project:
 #
-#   - a header of the library, included as "loadicator/<layer>/..." or <loadicator/<layer>/...>, must belong
-#     to a layer that the including directory may use;
-#   - any other quoted include must name a file beside the including file, so that no relative path can
-#     reach into a layer;
-#   - every file of the library must lie in the directory of a declared layer.
+#   cmake -D RULES=<build>/layerRules.cmake -P cmake/checkLayers.cmake
 #
-#   cmake -D RULES=<build>/layerRules.cmake -P checkLayers.cmake
+#   - every include must name its file in quotes or angle brackets, by a path without '.' or '..';
+#   - a header of the library, "loadicator/<layer>/...", must belong to a layer that the including directory
+#     may use;
+#   - any other quoted include must name a file beside the including file;
+#   - every declared directory must hold files, and every file of the library must lie in a declared layer.
 
 cmake_minimum_required(VERSION 3.20)
 
 include("${RULES}")
-set(libraryRoot "${projectRoot}/src/loadicator")
+set(projectRoot "${CMAKE_CURRENT_SOURCE_DIR}")
+set(libraryRoot "src/loadicator")
 if(NOT IS_DIRECTORY "${libraryRoot}")
-    message(FATAL_ERROR "the library directory '${libraryRoot}' does not exist")
+    message(FATAL_ERROR "no '${libraryRoot}' in '${projectRoot}': run from the root of the project")
 endif()
+# A glob reads *, ? and [ in the path of the project as a pattern; a class of one character matches each of
+# them literally.
+string(REGEX REPLACE "([][*?])" "[\\1]" projectPattern "${projectRoot}")
 
 set(violations "")
+set(index 0)
 foreach(directory IN LISTS checkedDirectories)
-    string(MAKE_C_IDENTIFIER "${directory}" key)
-    if(NOT IS_DIRECTORY "${projectRoot}/${directory}")
-        string(APPEND violations "\n  ${directory}: the directory does not exist")
+    set(allowed "${allowed_${index}}")
+    math(EXPR index "${index} + 1")
+    file(GLOB_RECURSE sources LIST_DIRECTORIES false
+         RELATIVE "${projectRoot}" "${projectPattern}/${directory}/*")
+    if(NOT sources)
+        string(APPEND violations "\n  ${directory}: no files to check")
         continue()
     endif()
-    file(GLOB_RECURSE sources LIST_DIRECTORIES false "${projectRoot}/${directory}/*")
     foreach(source IN LISTS sources)
         get_filename_component(sourceDirectory "${source}" DIRECTORY)
         file(STRINGS "${source}" includes REGEX "^[ \t]*#[ \t]*include")
         foreach(include IN LISTS includes)
-            if(include MATCHES "^[ \t]*#[ \t]*include[ \t]*[<\"]loadicator/([^/>\"]*)/")
-                if(NOT CMAKE_MATCH_1 IN_LIST allowed_${key})
+            if(NOT include MATCHES "^[ \t]*#[ \t]*include[ \t]*([<\"])([^>\"]*)[>\"]")
+                string(APPEND violations "\n  ${source}: ${include} cannot be checked")
+                continue()
+            endif()
+            set(delimiter "${CMAKE_MATCH_1}")
+            set(path "${CMAKE_MATCH_2}")
+            if(path MATCHES "(^|/)\\.\\.?(/|$)" OR path MATCHES "\\\\")
+                string(APPEND violations "\n  ${source}: ${include} is a relative path")
+            elseif(path MATCHES "^loadicator/([^/]*)/")
+                if(NOT CMAKE_MATCH_1 IN_LIST allowed)
                     string(APPEND violations "\n  ${source}: ${include}")
                 endif()
-            elseif(include MATCHES "^[ \t]*#[ \t]*include[ \t]*\"([^\"]*)\"")
-                if(CMAKE_MATCH_1 MATCHES "[/\\\\]" OR NOT EXISTS "${sourceDirectory}/${CMAKE_MATCH_1}")
-                    string(APPEND violations "\n  ${source}: ${include} is not a file beside it")
-                endif()
+            elseif(delimiter STREQUAL "\""
+                   AND (path MATCHES "/" OR NOT EXISTS "${projectRoot}/${sourceDirectory}/${path}"))
+                string(APPEND violations "\n  ${source}: ${include} is not a file beside it")
             endif()
         endforeach()
     endforeach()
 endforeach()
 
-file(GLOB entries LIST_DIRECTORIES true "${libraryRoot}/*")
+file(GLOB entries LIST_DIRECTORIES true RELATIVE "${projectRoot}" "${projectPattern}/${libraryRoot}/*")
 foreach(entry IN LISTS entries)
     get_filename_component(name "${entry}" NAME)
-    if(NOT IS_DIRECTORY "${entry}")
+    if(NOT IS_DIRECTORY "${projectRoot}/${entry}")
         string(APPEND violations "\n  ${entry}: not inside a layer")
     elseif(NOT name IN_LIST layers)
         string(APPEND violations "\n  ${entry}: not a declared layer")
