@@ -1,10 +1,10 @@
-#include "loadicator/report/reportWriter.h"
+#include "report.h"
 
 #include <format>
 #include <string>
 #include <string_view>
 
-namespace loadicator::report {
+namespace loadicator {
 
 namespace {
 
@@ -60,7 +60,7 @@ void writeReport(std::ostream& output, const Analysis& analysis) {
     writeQuantity(output, "Free-surface correction", stability.freeSurfaceCorrection.value(), "m");
     writeQuantity(output, "GM fluid", stability.gmFluid.value(), "m");
     if (stability.heel) {
-        writeQuantity(output, "Heel", stability.heel->degrees(), "deg", 2);
+        writeQuantity(output, "Heel", *stability.heel, "deg", 2);
     } else {
         output << "  Heel                        UNSTABLE: GM fluid is not positive\n";
     }

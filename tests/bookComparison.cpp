@@ -1,9 +1,8 @@
-#include "loadicator/book/bookResults.h"
-#include "loadicator/calc/analysis.h"
-#include "loadicator/io/csv.h"
-#include "loadicator/io/dataLoader.h"
-#include "loadicator/io/schema.h"
-#include "loadicator/util/error.h"
+#include "calc/analysis.h"
+#include "io/csv.h"
+#include "io/dataLoader.h"
+#include "io/schema.h"
+#include "util/error.h"
 
 #include <array>
 #include <cmath>
@@ -19,12 +18,12 @@
 namespace {
 
 using namespace loadicator;
-namespace schema = io::schema;
 
 struct Metric {
     std::string_view name;
     std::string_view unit;
-    std::string_view bookColumn;
+    // The column of the results of the book.
+    std::string_view column;
     double (*computed)(const Analysis&);
     // The test fails when the mean absolute deviation over the conditions of the book exceeds this.
     double meanLimit;
@@ -34,34 +33,27 @@ struct Metric {
 constexpr double outlierFactor = 3.0;
 
 constexpr std::array metrics{
-    Metric{"Displacement", "t", book::column::displacement,
-           [](const Analysis& a) { return a.mass.displacement.value(); }, 0.5},
-    Metric{"LCG", "m", book::column::lcg, [](const Analysis& a) { return a.mass.centreOfGravity.x.value(); },
-           0.02},
-    Metric{"TCG", "m", book::column::tcg, [](const Analysis& a) { return a.mass.centreOfGravity.y.value(); },
-           0.05},
-    Metric{"KG", "m", book::column::kg, [](const Analysis& a) { return a.mass.centreOfGravity.z.value(); },
-           0.01},
-    Metric{"Draught midships", "m", book::column::draught,
+    Metric{"Displacement", "t", "displacement", [](const Analysis& a) { return a.mass.displacement.value(); },
+           0.5},
+    Metric{"LCG", "m", "lcg", [](const Analysis& a) { return a.mass.centreOfGravity.x.value(); }, 0.02},
+    Metric{"TCG", "m", "tcg", [](const Analysis& a) { return a.mass.centreOfGravity.y.value(); }, 0.05},
+    Metric{"KG", "m", "kg", [](const Analysis& a) { return a.mass.centreOfGravity.z.value(); }, 0.01},
+    Metric{"Draught midships", "m", "draught",
            [](const Analysis& a) { return a.floatingPosition.draughtMidships.value(); }, 0.02},
-    Metric{"Draught aft", "m", book::column::draughtAft,
+    Metric{"Draught aft", "m", "draughtAft",
            [](const Analysis& a) { return a.floatingPosition.draughtAft.value(); }, 0.02},
-    Metric{"Draught forward", "m", book::column::draughtForward,
+    Metric{"Draught forward", "m", "draughtForward",
            [](const Analysis& a) { return a.floatingPosition.draughtForward.value(); }, 0.04},
-    Metric{"Trim", "m", book::column::trim, [](const Analysis& a) { return a.floatingPosition.trim.value(); },
-           0.05},
-    Metric{"KMT", "m", book::column::kmt, [](const Analysis& a) { return a.floatingPosition.kmt.value(); },
-           0.05},
-    Metric{"GM solid", "m", book::column::gmSolid,
-           [](const Analysis& a) { return a.stability.gmSolid.value(); }, 0.05},
-    Metric{"GM fluid", "m", book::column::gm, [](const Analysis& a) { return a.stability.gmFluid.value(); },
-           0.05},
-    Metric{"Heel", "deg", book::column::heel,
+    Metric{"Trim", "m", "trim", [](const Analysis& a) { return a.floatingPosition.trim.value(); }, 0.05},
+    Metric{"KMT", "m", "kmt", [](const Analysis& a) { return a.floatingPosition.kmt.value(); }, 0.05},
+    Metric{"GM solid", "m", "gmSolid", [](const Analysis& a) { return a.stability.gmSolid.value(); }, 0.05},
+    Metric{"GM fluid", "m", "gm", [](const Analysis& a) { return a.stability.gmFluid.value(); }, 0.05},
+    Metric{"Heel", "deg", "heel",
            [](const Analysis& a) {
                if (!a.stability.heel) {
                    throw LoadicatorError("the condition is unstable, so it has no heel to compare");
                }
-               return a.stability.heel->degrees();
+               return *a.stability.heel;
            },
            0.4},
 };
@@ -93,32 +85,31 @@ struct Statistics {
 
 int run(const std::filesystem::path& dataDirectory) {
     const Ship ship = io::loadShip(dataDirectory);
-    const io::CsvDocument bookResults =
-        io::CsvDocument::readFile(dataDirectory / book::resultsFile, book::columns);
-    const io::CsvColumn condition = bookResults.column(book::column::condition);
-    std::array<io::CsvColumn, metrics.size()> columns;
-    for (std::size_t index = 0; index < metrics.size(); ++index) {
-        columns[index] = bookResults.column(metrics[index].bookColumn);
+    std::vector<std::string_view> resultColumns{"condition"};
+    for (const Metric& metric : metrics) {
+        resultColumns.push_back(metric.column);
     }
+    const std::vector<io::CsvRow> bookResults =
+        io::readCsv(dataDirectory / io::schema::bookResultsFile, resultColumns);
 
     std::array<Statistics, metrics.size()> statistics;
-    for (const io::CsvRow expected : bookResults.rows()) {
-        const std::string name{expected.text(condition)};
+    for (const io::CsvRow& expected : bookResults) {
+        const std::string name{expected.text("condition")};
         withContext(name, [&] {
             const Analysis analysis = analyzeLoadingCondition(
-                ship, io::loadLoadingCondition(dataDirectory / schema::files::conditions /
-                                               (name + std::string(schema::files::extension))));
+                ship,
+                io::loadLoadingCondition(dataDirectory / io::schema::conditionDirectory / (name + ".csv")));
             for (std::size_t index = 0; index < metrics.size(); ++index) {
                 const Metric& metric = metrics[index];
-                statistics[index].add(name, metric.computed(analysis) - expected.number(columns[index]),
+                statistics[index].add(name, metric.computed(analysis) - expected.number(metric.column),
                                       outlierFactor * metric.meanLimit);
             }
         });
     }
 
-    const auto conditionCount = static_cast<double>(bookResults.rowCount());
+    const auto conditionCount = static_cast<double>(bookResults.size());
     std::cout << std::format("Deviation from the trim and stability book over {} loading conditions\n",
-                             bookResults.rowCount())
+                             bookResults.size())
               << "(computed minus book; the test fails when the mean absolute deviation of a metric "
                  "exceeds its limit)\n\n"
               << std::format("{:<18}{:<5}{:>10}{:>8}{:>10}{:>10}  {}\n", "Metric", "Unit", "Mean abs",

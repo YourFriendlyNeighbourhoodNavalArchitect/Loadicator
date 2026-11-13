@@ -1,8 +1,6 @@
-#include "loadingConditions.h"
+#include "extractor.h"
 
-#include "loadicator/book/bookResults.h"
-#include "loadicator/util/error.h"
-#include "loadicator/util/text.h"
+#include "util/text.h"
 
 #include <algorithm>
 #include <array>
@@ -14,22 +12,20 @@ namespace loadicator::extractor {
 
 namespace {
 
-namespace results = book::column;
-
 constexpr std::string_view heading = "LOADING CONDITION - COND";
 
+// The labels of the floating position in the book, and the columns of the results file they go to.
 struct ResultLabel {
     std::string_view label;
     std::string_view column;
 };
 
-constexpr std::array floatingPosition{
-    ResultLabel{"moulded", results::draught},   ResultLabel{"KM", results::kmt},
-    ResultLabel{"Trim", results::trim},         ResultLabel{"PS=+", results::heel},
-    ResultLabel{"TA", results::draughtAft},     ResultLabel{"GM0", results::gmSolid},
-    ResultLabel{"TF", results::draughtForward}, ResultLabel{"GM", results::gm}};
+constexpr std::array floatingPosition{ResultLabel{"moulded", "draught"},   ResultLabel{"KM", "kmt"},
+                                      ResultLabel{"Trim", "trim"},         ResultLabel{"PS=+", "heel"},
+                                      ResultLabel{"TA", "draughtAft"},     ResultLabel{"GM0", "gmSolid"},
+                                      ResultLabel{"TF", "draughtForward"}, ResultLabel{"GM", "gm"}};
 
-constexpr std::array totalWeight{results::displacement, results::lcg, results::tcg, results::kg};
+constexpr std::array<std::string_view, 4> totalWeight{"displacement", "lcg", "tcg", "kg"};
 
 constexpr std::size_t entryValues = 6;
 
@@ -65,7 +61,7 @@ public:
             addWeight(line, std::string(tokens.front().substr(1, tokens.front().size() - 2)));
         } else if (tokens.front() == "Lightweight") {
             const auto values = numbers(line, 4);
-            current->condition.addFixedWeight(
+            current->condition.weights.push_back(
                 WeightItem{.name = "Lightweight",
                            .mass = Mass{values[0]},
                            .centre = Position{Length{values[1]}, Length{values[2]}, Length{values[3]}},
@@ -73,7 +69,7 @@ public:
         } else if (line.text.starts_with("Total weight")) {
             const auto values = numbers(line, totalWeight.size());
             for (std::size_t index = 0; index < totalWeight.size(); ++index) {
-                current->results[totalWeight[index]] = values[index];
+                current->results[std::string(totalWeight[index])] = values[index];
             }
         } else if (!current->results.empty()) {
             readFloatingPosition(line, tokens);
@@ -103,7 +99,8 @@ private:
         }
         const std::string name = "COND" + std::string(text::trim(rest.substr(0, colon))) + " " +
                                  std::string(text::trim(rest.substr(colon + 1)));
-        current = BookCondition{.number = static_cast<int>(*number), .condition = LoadingCondition(name)};
+        current =
+            BookCondition{.number = static_cast<int>(*number), .condition = LoadingCondition{.name = name}};
         density.reset();
     }
 
@@ -126,21 +123,17 @@ private:
         if (!density) {
             throw source.error(line, id + " is not preceded by its contents");
         }
-        const double mass = entry(line).front();
-        withContext(source.location(line), [&] {
-            current->condition.addTankLoad(TankLoad(CompartmentId{id}, Mass{mass}, *density, phase));
-        });
+        current->condition.tanks.push_back(TankLoad{
+            .compartment = id, .amount = Mass{entry(line).front()}, .density = *density, .phase = phase});
     }
 
     void addWeight(const SourceLine& line, const std::string& name) {
         const auto values = entry(line);
-        withContext(source.location(line), [&] {
-            current->condition.addFixedWeight(
-                WeightItem{.name = name,
-                           .mass = Mass{values[0]},
-                           .centre = Position{Length{values[2]}, Length{values[3]}, Length{values[4]}},
-                           .freeSurfaceMoment = Moment{values[5]}});
-        });
+        current->condition.weights.push_back(
+            WeightItem{.name = name,
+                       .mass = Mass{values[0]},
+                       .centre = Position{Length{values[2]}, Length{values[3]}, Length{values[4]}},
+                       .freeSurfaceMoment = Moment{values[5]}});
     }
 
     // The values of an entry are its last numbers: the description before them may hold digits, and a
@@ -162,7 +155,7 @@ private:
             if (found == floatingPosition.end() || !value) {
                 continue;
             }
-            current->results[found->column] = *value;
+            current->results[std::string(found->column)] = *value;
             if (found->column == floatingPosition.back().column) {
                 finish(line);
                 return;
@@ -172,8 +165,7 @@ private:
 
     void finish(const SourceLine& line) {
         if (current->results.size() != floatingPosition.size() + totalWeight.size()) {
-            throw source.error(line,
-                               current->condition.name() + ": some results of the book were not found");
+            throw source.error(line, current->condition.name + ": some results of the book were not found");
         }
         conditions.push_back(std::move(*current));
         current.reset();
@@ -197,9 +189,8 @@ private:
 
 }
 
-std::vector<BookCondition>
-extractLoadingConditions(const SourceText& source,
-                         const std::set<std::string, std::less<>>& tabulatedCompartments) {
+std::vector<BookCondition> extractLoadingConditions(
+    const SourceText& source, const std::set<std::string, std::less<>>& tabulatedCompartments) {
     Reader reader(source, tabulatedCompartments);
     for (const SourceLine& line : source.lines()) {
         reader.read(line);

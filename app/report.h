@@ -1,10 +1,10 @@
 #pragma once
 
-#include "loadicator/calc/analysis.h"
+#include "calc/analysis.h"
 
 #include <ostream>
 
-namespace loadicator::report {
+namespace loadicator {
 
 void writeReport(std::ostream& output, const Analysis& analysis);
 

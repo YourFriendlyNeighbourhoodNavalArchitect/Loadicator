@@ -1,112 +1,115 @@
-#include "loadicator/calc/equilibrium.h"
+#include "calc/equilibrium.h"
 
-#include "loadicator/numeric/rootFinding.h"
-#include "loadicator/util/error.h"
+#include "util/error.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <format>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace loadicator {
 
 namespace {
 
-constexpr double draughtTolerance = 1e-6;
-constexpr double trimTolerance = 1e-6;
+constexpr double tolerance = 1e-6;
+
+// Narrows [lower, upper], at whose ends the predicate differs, by bisection until it is shorter than the
+// tolerance. Each end keeps the value of the predicate it had.
+template <typename Predicate>
+[[nodiscard]] std::pair<double, double> bisect(const Predicate& predicate, double lower, double upper) {
+    const bool atLower = predicate(lower);
+    while (upper - lower > tolerance) {
+        const double middle = (lower + upper) / 2.0;
+        (predicate(middle) == atLower ? lower : upper) = middle;
+    }
+    return {lower, upper};
+}
 
 struct TrimRange {
     double lower = 0.0;
     double upper = 0.0;
 };
 
-// The ranges of trim in which the function is not negative. The function is taken to change sign at most once
-// between neighbouring tabulated trims, which is the resolution at which the tables describe the ship. Each
-// end of a range is a trim at which the function is not negative.
-template <typename Function>
-[[nodiscard]] std::vector<TrimRange> trimsWhereNotNegative(const Function& function,
-                                                           std::span<const double> tabulatedTrims) {
+// The ranges of the tabulated trims in which the predicate holds. It is taken to change at most once between
+// neighbouring tabulated trims, which is the resolution at which the tables describe the ship.
+template <typename Predicate>
+[[nodiscard]] std::vector<TrimRange> trimsWhere(const Predicate& holds, std::span<const double> trims) {
     std::vector<TrimRange> ranges;
     std::optional<double> start;
-    double previous = tabulatedTrims.front();
-    double previousValue = function(previous);
-    if (previousValue >= 0.0) {
-        start = previous;
+    if (holds(trims.front())) {
+        start = trims.front();
     }
-    for (std::size_t index = 1; index < tabulatedTrims.size(); ++index) {
-        const double trim = tabulatedTrims[index];
-        const double value = function(trim);
-        if ((previousValue >= 0.0) != (value >= 0.0)) {
-            const numeric::Interval change = numeric::narrowBracket(
-                function, numeric::Interval{previous, trim, previousValue, value}, trimTolerance);
-            const double boundary = change.lowerValue >= 0.0 ? change.lower : change.upper;
-            if (value >= 0.0) {
-                start = boundary;
-            } else {
-                ranges.push_back(TrimRange{*start, boundary});
-                start.reset();
-            }
+    for (std::size_t index = 1; index < trims.size(); ++index) {
+        if (holds(trims[index]) == start.has_value()) {
+            continue;
         }
-        previous = trim;
-        previousValue = value;
+        const auto [before, after] = bisect(holds, trims[index - 1], trims[index]);
+        if (start) {
+            ranges.push_back(TrimRange{*start, before});
+            start.reset();
+        } else {
+            start = after;
+        }
     }
     if (start) {
-        ranges.push_back(TrimRange{*start, tabulatedTrims.back()});
+        ranges.push_back(TrimRange{*start, trims.back()});
     }
     return ranges;
 }
 
 }
 
-FloatingPosition solveEquilibrium(const MassSummary& mass, const HydrostaticTable& hydrostatics,
-                                  const ShipParticulars& ship) {
+FloatingPosition solveEquilibrium(Mass displacement, const Position& centreOfGravity,
+                                  const HydrostaticTable& hydrostatics, const ShipParticulars& ship) {
     const double minimumDraught = hydrostatics.minimumDraught().value();
     const double maximumDraught = hydrostatics.maximumDraught().value();
     const auto excessBuoyancy = [&](double draught, double trim) {
-        return (hydrostatics.displacementAt(Length{draught}, Length{trim}) - mass.displacement).value();
+        return (hydrostatics.displacementAt(Length{draught}, Length{trim}) - displacement).value();
     };
 
     // The draught for a trim lies within the tables only where the displacement lies between those of the
     // least and of the greatest tabulated draught at that trim, so the trim is sought only there.
     const auto floats = [&](double trim) {
-        return std::min(-excessBuoyancy(minimumDraught, trim), excessBuoyancy(maximumDraught, trim));
+        return excessBuoyancy(minimumDraught, trim) <= 0.0 && excessBuoyancy(maximumDraught, trim) >= 0.0;
     };
-    const std::vector<TrimRange> floatingTrims = trimsWhereNotNegative(floats, hydrostatics.tabulatedTrims());
+    const std::span<const double> tabulatedTrims = hydrostatics.tabulatedTrims();
+    const std::vector<TrimRange> floatingTrims = trimsWhere(floats, tabulatedTrims);
     if (floatingTrims.empty()) {
         throw LoadicatorError(std::format("a displacement of {:.1f} t lies outside the hydrostatic tables at "
                                           "every tabulated trim from {} to {} m",
-                                          mass.displacement.value(), hydrostatics.minimumTrim().value(),
-                                          hydrostatics.maximumTrim().value()));
+                                          displacement.value(), tabulatedTrims.front(),
+                                          tabulatedTrims.back()));
     }
 
     const auto draughtForTrim = [&](double trim) {
-        const auto atTrim = [&](double draught) { return excessBuoyancy(draught, trim); };
-        return Length{numeric::findRoot(atTrim, numeric::evaluate(atTrim, minimumDraught, maximumDraught),
-                                        draughtTolerance)};
+        const auto [lower, upper] =
+            bisect([&](double draught) { return excessBuoyancy(draught, trim) > 0.0; }, minimumDraught,
+                   maximumDraught);
+        return Length{(lower + upper) / 2.0};
     };
-    // Horizontal distance between B and G when trimmed; zero at equilibrium. Positions are in ship
-    // axes, so a trim angle θ moves each point aft by z·tanθ: B and G are on one vertical when
+    // Horizontal distance between B and G when trimmed; zero at equilibrium. Positions are in ship axes, so
+    // a trim angle θ moves each point aft by z·tanθ: B and G are on one vertical when
     // LCB − LCG = (VCB − KG)·tanθ.
     const auto lever = [&](double trimValue) {
         const Length trim{trimValue};
         const Length draught = draughtForTrim(trimValue);
-        const Ratio tangent = trim / ship.lengthBetweenPerpendiculars();
-        return (hydrostatics.lcbAt(draught, trim) - mass.centreOfGravity.x -
-                (hydrostatics.vcbAt(draught) - mass.centreOfGravity.z) * tangent)
+        const Ratio tangent = trim / ship.lengthBetweenPerpendiculars;
+        return (hydrostatics.lcbAt(draught, trim) - centreOfGravity.x -
+                (hydrostatics.vcbAt(draught) - centreOfGravity.z) * tangent)
             .value();
     };
+    const auto buoyancyForward = [&](double trim) { return lever(trim) >= 0.0; };
 
     for (const TrimRange& range : floatingTrims) {
-        const numeric::Interval trims = numeric::evaluate(lever, range.lower, range.upper);
-        if (!trims.bracketsRoot()) {
+        if (buoyancyForward(range.lower) == buoyancyForward(range.upper)) {
             continue;
         }
-        const Length trim{numeric::findRoot(lever, trims, trimTolerance)};
+        const auto [lower, upper] = bisect(buoyancyForward, range.lower, range.upper);
+        const Length trim{(lower + upper) / 2.0};
         const Length draught = draughtForTrim(trim.value());
-        const Length draughtAft =
-            draught + trim * (ship.referencePointX() / ship.lengthBetweenPerpendiculars());
+        const Length draughtAft = draught + trim * (ship.referencePointX / ship.lengthBetweenPerpendiculars);
         return FloatingPosition{.draughtMidships = draught,
                                 .draughtAft = draughtAft,
                                 .draughtForward = draughtAft - trim,

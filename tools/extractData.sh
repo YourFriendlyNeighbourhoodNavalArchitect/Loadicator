@@ -5,11 +5,6 @@ repository="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 build="${1:-$repository/build}"
 source="$repository/data/source"
 
-if ! command -v pdftotext >/dev/null; then
-    echo "pdftotext not found (install poppler-utils)" >&2
-    exit 1
-fi
-
 cmake -S "$repository" -B "$build" >/dev/null
 cmake --build "$build" --target dataExtractor bookComparison
 

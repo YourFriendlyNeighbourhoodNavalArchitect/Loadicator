@@ -1,8 +1,7 @@
 #pragma once
 
-#include "loadicator/numeric/interpolation.h"
-#include "loadicator/numeric/splineSurface.h"
-#include "loadicator/util/quantity.h"
+#include "numeric/interpolation.h"
+#include "util/quantity.h"
 
 #include <span>
 #include <vector>
@@ -26,8 +25,9 @@ struct TrimGridPoint {
 
 class HydrostaticTable {
 public:
-    HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel,
-                     const std::vector<TrimGridPoint>& trimGrid);
+    // The trim grid holds every draught at every trim exactly once, in any order. The even-keel table covers
+    // its draughts.
+    HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel, std::vector<TrimGridPoint> trimGrid);
 
     [[nodiscard]] Mass displacementAt(Length draught, Length trim) const;
     [[nodiscard]] Length lcbAt(Length draught, Length trim) const;
@@ -38,24 +38,20 @@ public:
 
     [[nodiscard]] Length minimumDraught() const { return Length{gridDraughts.front()}; }
     [[nodiscard]] Length maximumDraught() const { return Length{gridDraughts.back()}; }
-    [[nodiscard]] Length minimumTrim() const { return Length{gridTrims.front()}; }
-    [[nodiscard]] Length maximumTrim() const { return Length{gridTrims.back()}; }
     // The trims at which the hydrostatics are tabulated, in metres.
     [[nodiscard]] std::span<const double> tabulatedTrims() const { return gridTrims.nodes(); }
 
 private:
-    // The axes of the trim grid and its points, ordered by trim and then by draught.
-    struct TrimGrid {
+    // The trim grid ordered by trim and then by draught, as the spline surfaces take it, and its axes.
+    struct SortedGrid {
+        std::vector<TrimGridPoint> points;
         numeric::Abscissa draughts;
         numeric::Abscissa trims;
-        std::vector<TrimGridPoint> points;
     };
 
-    [[nodiscard]] static TrimGrid orderedGrid(const std::vector<TrimGridPoint>& trimGrid);
+    [[nodiscard]] static SortedGrid sorted(std::vector<TrimGridPoint> trimGrid);
 
-    HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel, const TrimGrid& grid);
-
-    [[nodiscard]] double valueAt(const numeric::SplineSurface& surface, Length draught, Length trim) const;
+    HydrostaticTable(const std::vector<EvenKeelHydrostatics>& evenKeel, const SortedGrid& grid);
 
     numeric::Abscissa evenKeelDraughts;
     std::vector<double> lcf;

@@ -1,7 +1,6 @@
-#include "hydrostaticTables.h"
+#include "extractor.h"
 
-#include "loadicator/util/error.h"
-#include "loadicator/util/text.h"
+#include "util/text.h"
 
 #include <algorithm>
 #include <array>
@@ -28,9 +27,9 @@ public:
         if (!lengthBetweenPerpendiculars || !referencePointX) {
             throw source.error("the length between perpendiculars or the reference point was not found");
         }
-        HydrostaticData data{.particulars = withContext(source.name(), [&] {
-            return ShipParticulars(Length{*lengthBetweenPerpendiculars}, Length{*referencePointX});
-        })};
+        HydrostaticData data{
+            .particulars = {.lengthBetweenPerpendiculars = Length{*lengthBetweenPerpendiculars},
+                            .referencePointX = Length{*referencePointX}}};
         for (const auto& [point, value] : lcf) {
             data.evenKeel.push_back(EvenKeelHydrostatics{
                 .draught = Length{point.first}, .lcf = Length{value}, .vcb = Length{at(vcb, point, "VCB")}});
@@ -41,10 +40,6 @@ public:
                                                   .displacement = Mass{value},
                                                   .lcb = Length{at(lcb, point, "LCB")},
                                                   .kmt = Length{at(kmt, point, "KMT")}});
-        }
-        if (vcb.size() != lcf.size() || lcb.size() != displacement.size() ||
-            kmt.size() != displacement.size()) {
-            throw source.error("the hydrostatic properties are not tabulated at the same points");
         }
         return data;
     }

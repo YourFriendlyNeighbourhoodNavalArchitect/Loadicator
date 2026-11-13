@@ -1,7 +1,7 @@
 #pragma once
 
-#include "loadicator/domain/loadingCondition.h"
-#include "loadicator/domain/ship.h"
+#include "domain/loadingCondition.h"
+#include "domain/ship.h"
 
 #include <filesystem>
 

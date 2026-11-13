@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cmath>
 #include <compare>
-#include <numbers>
+#include <functional>
+#include <vector>
 
 namespace loadicator {
 
@@ -34,7 +34,6 @@ public:
 
     friend constexpr Quantity operator+(Quantity lhs, Quantity rhs) { return lhs += rhs; }
     friend constexpr Quantity operator-(Quantity lhs, Quantity rhs) { return lhs -= rhs; }
-    friend constexpr Quantity operator-(Quantity operand) { return Quantity{-operand.magnitude}; }
     friend constexpr Quantity operator*(Quantity lhs, double factor) { return lhs *= factor; }
     friend constexpr Quantity operator*(double factor, Quantity rhs) { return rhs *= factor; }
     friend constexpr Quantity operator/(Quantity lhs, double divisor) { return lhs /= divisor; }
@@ -65,25 +64,22 @@ using Mass = Quantity<1, 0>;
 using Density = Quantity<1, -3>;
 using Moment = Quantity<1, 1>;
 
-[[nodiscard]] constexpr Ratio ratioFromPercent(double percent) {
-    return Ratio{percent / 100.0};
-}
-
-class Angle {
-public:
-    [[nodiscard]] static constexpr Angle fromRadians(double radians) { return Angle{radians}; }
-
-    [[nodiscard]] constexpr double degrees() const { return radiansValue * 180.0 / std::numbers::pi; }
-
-    friend constexpr auto operator<=>(Angle, Angle) = default;
-
-private:
-    constexpr explicit Angle(double radians) : radiansValue(radians) {}
-    double radiansValue = 0.0;
+// x forward of the aft perpendicular, y positive to port, z above the baseline.
+struct Position {
+    Length x;
+    Length y;
+    Length z;
 };
 
-[[nodiscard]] inline Angle arcTangent(Ratio ratio) {
-    return Angle::fromRadians(std::atan(ratio.value()));
+// The magnitudes of a quantity projected from each row, for the numeric code, which works on plain numbers.
+template <typename Row, typename Projection>
+[[nodiscard]] std::vector<double> magnitudes(const std::vector<Row>& rows, Projection projection) {
+    std::vector<double> values;
+    values.reserve(rows.size());
+    for (const Row& row : rows) {
+        values.push_back(std::invoke(projection, row).value());
+    }
+    return values;
 }
 
 }
